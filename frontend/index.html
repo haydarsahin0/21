@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kelime Sözlüğü</title>
+  <link
+    rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📖</text></svg>"
+  />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">📖</span>
+      <div>
+        <h1>Kelime Sözlüğü</h1>
+        <p class="tagline">Hedef dilde ara, Türkçe anla</p>
+      </div>
+    </div>
+    <nav class="tabs">
+      <button class="tab is-active" data-panel="search">Ara</button>
+      <button class="tab" data-panel="saved">Kelime Defteri</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="panel-search" class="panel is-active">
+      <form id="search-form" class="search">
+        <select id="lang" aria-label="Hedef dil"></select>
+        <input
+          id="word"
+          type="text"
+          placeholder="Kelimeyi yaz, örn. verstehen"
+          autocomplete="off"
+          autofocus
+        />
+        <button type="submit" id="submit">Ara</button>
+      </form>
+
+      <p class="hint" id="hint">
+        Aradığın kelime yerel veritabanına kaydedilir; ikinci aramada internete
+        hiç çıkılmaz.
+      </p>
+
+      <div id="status" class="status" hidden></div>
+      <article id="result" class="result" hidden></article>
+
+      <section class="recent" id="recent-block" hidden>
+        <h2>Son aramalar</h2>
+        <div id="recent" class="chips"></div>
+      </section>
+    </section>
+
+    <section id="panel-saved" class="panel">
+      <div class="saved-head">
+        <h2>Kelime Defteri</h2>
+        <a id="export" href="/api/saved/export" download>Anki için TSV indir</a>
+      </div>
+      <div id="saved-list" class="saved-list"></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
