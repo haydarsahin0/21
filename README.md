@@ -76,8 +76,13 @@ npx tsc --noEmit
 ```
 
 Site statik export ediliyor (`output: "export"`), sunucu tarafı kod yok.
-Varsayılan branch'e her push'ta `.github/workflows/deploy.yml` çalışıp GitHub
-Pages'e dağıtıyor.
+Varsayılan branch'e her push'ta `.github/workflows/deploy.yml` çalışır, çıktıyı
+`gh-pages` branch'ine yazar ve GitHub Pages oradan yayınlar.
+
+Not: `actions/configure-pages` ile Pages'i otomatik açmak denendi ama
+`GITHUB_TOKEN` "create pages site" çağrısını yapamıyor (*Resource not
+accessible by integration*). `gh-pages` branch'ine push etmek hem bu yetkiyi
+gerektirmiyor hem de ilk push'ta Pages'i kendiliğinden açıyor.
 
 ## Yapı
 
