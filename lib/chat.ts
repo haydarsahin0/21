@@ -1,6 +1,7 @@
 "use client";
 
 import { LANGUAGES, type LanguageCode } from "./dictionary";
+import type { Provider, ProviderKind } from "./providers";
 
 export class ChatError extends Error {}
 
@@ -13,7 +14,6 @@ export class ChatError extends Error {}
  * yaziliyor — bilgi "toptan" degil, adim adim geliyor.
  */
 
-const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
 
 export type Role = "user" | "model";
 
@@ -89,10 +89,102 @@ Nasıl konuşacaksın:
 interface StreamOptions {
   messages: ChatMessage[];
   language: LanguageCode;
+  provider: Provider;
+  baseUrl: string;
   apiKey: string;
   model: string;
   signal?: AbortSignal;
   onDelta: (chunk: string) => void;
+}
+
+/** Gemini'nin kendi bicimi. Sistem yonergesi ayri bir alanda gider. */
+function geminiRequest(
+  baseUrl: string,
+  model: string,
+  apiKey: string,
+  messages: ChatMessage[],
+  language: LanguageCode,
+): [string, RequestInit] {
+  return [
+    `${baseUrl}/models/${model}:streamGenerateContent?alt=sse`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey,
+      },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: systemPrompt(language) }] },
+        contents: messages.map((message) => ({
+          role: message.role,
+          parts: [{ text: message.text }],
+        })),
+        generationConfig: { temperature: 0.4, maxOutputTokens: 600 },
+      }),
+    },
+  ];
+}
+
+/** DeepSeek, OpenRouter, Ollama ve digerlerinin konustugu OpenAI bicimi. */
+function openaiRequest(
+  baseUrl: string,
+  model: string,
+  apiKey: string,
+  messages: ChatMessage[],
+  language: LanguageCode,
+): [string, RequestInit] {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${apiKey}`,
+  };
+
+  // OpenRouter cagriyi yapan siteyi bu basliklarla etiketliyor; zorunlu degil
+  // ama gonderilmesi bekleniyor.
+  if (baseUrl.includes("openrouter.ai") && typeof window !== "undefined") {
+    headers["HTTP-Referer"] = window.location.origin;
+    headers["X-Title"] = "Kelime Sozlugu";
+  }
+
+  return [
+    `${baseUrl}/chat/completions`,
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        model,
+        stream: true,
+        temperature: 0.4,
+        max_tokens: 600,
+        messages: [
+          { role: "system", content: systemPrompt(language) },
+          ...messages.map((message) => ({
+            // OpenAI bicimi modelin rolunu "assistant" diye adlandiriyor.
+            role: message.role === "model" ? "assistant" : "user",
+            content: message.text,
+          })),
+        ],
+      }),
+    },
+  ];
+}
+
+/** Iki bicimin SSE govdesinden metin parcasini cikarir. */
+function readDelta(kind: ProviderKind, payload: string): string {
+  const parsed = JSON.parse(payload) as {
+    candidates?: { content?: { parts?: { text?: string }[] } }[];
+    choices?: { delta?: { content?: string }; message?: { content?: string } }[];
+  };
+
+  if (kind === "gemini") {
+    return (
+      parsed.candidates?.[0]?.content?.parts
+        ?.map((part) => part.text ?? "")
+        .join("") ?? ""
+    );
+  }
+
+  const choice = parsed.choices?.[0];
+  return choice?.delta?.content ?? choice?.message?.content ?? "";
 }
 
 /**
@@ -101,56 +193,67 @@ interface StreamOptions {
 export async function streamChat({
   messages,
   language,
+  provider,
+  baseUrl,
   apiKey,
   model,
   signal,
   onDelta,
 }: StreamOptions): Promise<string> {
-  if (!apiKey) throw new ChatError("Önce Gemini API anahtarını gir.");
+  if (!apiKey) throw new ChatError("Önce API anahtarını gir.");
+  if (!baseUrl) throw new ChatError("Sağlayıcı adresi boş.");
+  if (!model) throw new ChatError("Model seçilmedi.");
+
+  const trimmedBase = baseUrl.replace(/\/$/, "");
+  const [url, init] =
+    provider.kind === "gemini"
+      ? geminiRequest(trimmedBase, model, apiKey, messages, language)
+      : openaiRequest(trimmedBase, model, apiKey, messages, language);
 
   let response: Response;
   try {
-    response = await fetch(
-      `${ENDPOINT}/${model}:streamGenerateContent?alt=sse`,
-      {
-        method: "POST",
-        signal,
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey,
-        },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: systemPrompt(language) }] },
-          contents: messages.map((message) => ({
-            role: message.role,
-            parts: [{ text: message.text }],
-          })),
-          generationConfig: { temperature: 0.4, maxOutputTokens: 600 },
-        }),
-      },
-    );
+    response = await fetch(url, { ...init, signal });
   } catch (error) {
     if (signal?.aborted) return "";
+    // Tarayici CORS reddini de ag hatasini da ayni TypeError ile bildiriyor;
+    // ikisini ayirt edemedigimiz icin her iki olasiligi da soyluyoruz.
     throw new ChatError(
-      `Google'a bağlanılamadı: ${error instanceof Error ? error.message : String(error)}`,
+      `${provider.label} sağlayıcısına ulaşılamadı. İki sebebi olabilir: ` +
+        "internet bağlantın, ya da bu sağlayıcının tarayıcıdan doğrudan " +
+        "çağrılmasına izin vermemesi (CORS). İkincisiyse ayarlardan başka bir " +
+        "sağlayıcı seç — OpenRouter üzerinden aynı modellere erişebilirsin. " +
+        `(${error instanceof Error ? error.message : String(error)})`,
     );
   }
 
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
-    if (response.status === 400 || response.status === 403) {
+    if (response.status === 401 || response.status === 403) {
       throw new ChatError(
-        `Anahtar reddedildi (${response.status}). aistudio.google.com/apikey ` +
-          "adresinden aldığın anahtarı doğru yapıştırdığından emin ol.",
+        `Anahtar reddedildi (${response.status}). ${provider.label} anahtarını ` +
+          "doğru yapıştırdığından emin ol.",
+      );
+    }
+    if (response.status === 400) {
+      throw new ChatError(
+        `İstek reddedildi (400). Genelde anahtar ya da model adı hatalıdır. ` +
+          `Seçili model: ${model}. ${detail.slice(0, 160)}`,
+      );
+    }
+    if (response.status === 402) {
+      throw new ChatError(
+        `${provider.label} bakiyen bitmiş görünüyor (402). Hesabına bakiye ` +
+          "ekleyebilir ya da ayarlardan ücretsiz bir sağlayıcıya geçebilirsin.",
       );
     }
     if (response.status === 429) {
       throw new ChatError(
-        "Günlük ücretsiz kotan doldu. Yarın sıfırlanır; ayarlardan başka bir " +
-          "model de seçebilirsin.",
+        "Kotan doldu (429). Biraz bekle ya da ayarlardan başka bir model seç.",
       );
     }
-    throw new ChatError(`Google ${response.status} döndü: ${detail.slice(0, 200)}`);
+    throw new ChatError(
+      `${provider.label} ${response.status} döndü: ${detail.slice(0, 200)}`,
+    );
   }
 
   if (!response.body) throw new ChatError("Akış başlatılamadı.");
@@ -177,12 +280,7 @@ export async function streamChat({
         if (!payload || payload === "[DONE]") continue;
 
         try {
-          const parsed = JSON.parse(payload) as {
-            candidates?: { content?: { parts?: { text?: string }[] } }[];
-          };
-          const text = parsed.candidates?.[0]?.content?.parts
-            ?.map((part) => part.text ?? "")
-            .join("");
+          const text = readDelta(provider.kind, payload);
           if (text) {
             full += text;
             onDelta(text);
@@ -195,9 +293,7 @@ export async function streamChat({
   }
 
   if (!full.trim()) {
-    throw new ChatError(
-      "Modelden boş cevap geldi. Tekrar dener misin?",
-    );
+    throw new ChatError("Modelden boş cevap geldi. Tekrar dener misin?");
   }
 
   return full;

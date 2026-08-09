@@ -55,11 +55,12 @@ export function Dictionary() {
 
   // Anahtar yoksa yapilacak tek is anahtari almak; sohbeti gostermek
   // kullaniciyi calismayacak bir kutuya yonlendirmek olurdu.
-  if (!settings.apiKey || showSettings) {
+  const hasKey = Boolean(storage.currentKey(settings));
+  if (!hasKey || showSettings) {
     return (
       <SettingsPanel
         settings={settings}
-        firstRun={!settings.apiKey}
+        firstRun={!hasKey}
         onDone={() => setShowSettings(false)}
       />
     );

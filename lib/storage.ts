@@ -2,11 +2,11 @@
 
 import {
   DEFAULT_LANGUAGE,
-  DEFAULT_MODEL,
   isLanguageCode,
   normalizeWord,
   type LanguageCode,
 } from "./dictionary";
+import { DEFAULT_PROVIDER, defaultModel } from "./providers";
 
 /**
  * Anahtar, dil tercihi ve kelime defteri tarayicida duruyor.
@@ -20,8 +20,10 @@ import {
 
 const SAVED_KEY = "sozluk:saved:v1";
 const LANGUAGE_KEY = "sozluk:lang:v1";
-const API_KEY_KEY = "sozluk:apikey:v1";
-const MODEL_KEY = "sozluk:model:v1";
+const SETTINGS_KEY = "sozluk:settings:v2";
+// v1 anahtarlari: yalniz Gemini varken kullaniliyordu, goc icin okunuyor.
+const LEGACY_API_KEY = "sozluk:apikey:v1";
+const LEGACY_MODEL_KEY = "sozluk:model:v1";
 
 export interface SavedWord {
   word: string;
@@ -31,8 +33,17 @@ export interface SavedWord {
 }
 
 export interface Settings {
-  apiKey: string;
+  provider: string;
   model: string;
+  /** Saglayici basina anahtar: saglayici degistirince oncekini kaybetme. */
+  keys: Record<string, string>;
+  /** Yalniz "custom" saglayici icin. */
+  customBaseUrl: string;
+}
+
+/** Secili saglayicinin anahtari. */
+export function currentKey(settings: Settings): string {
+  return settings.keys[settings.provider] ?? "";
 }
 
 function read<T>(key: string, fallback: T): T {
@@ -68,7 +79,12 @@ function emit(): void {
 // Sunucu anlik goruntuleri sabit referans olmali; aksi halde
 // useSyncExternalStore sonsuz donguye girer.
 const EMPTY_SAVED: SavedWord[] = [];
-const EMPTY_SETTINGS: Settings = { apiKey: "", model: DEFAULT_MODEL };
+const EMPTY_SETTINGS: Settings = {
+  provider: DEFAULT_PROVIDER,
+  model: defaultModel(DEFAULT_PROVIDER),
+  keys: {},
+  customBaseUrl: "",
+};
 
 let savedSnapshot: SavedWord[] = EMPTY_SAVED;
 let languageSnapshot: LanguageCode = DEFAULT_LANGUAGE;
@@ -87,13 +103,32 @@ function hydrate(): void {
     languageSnapshot = storedLanguage;
   }
 
-  // Anahtar duz metin olarak saklaniyor: sifrelemek guvenlik kazandirmaz,
+  // Anahtarlar duz metin olarak saklaniyor: sifrelemek guvenlik kazandirmaz,
   // cunku cozme anahtari da ayni sayfada olurdu. Onemli olan anahtarin bu
   // cihazdan disari cikmamasi.
-  const storedKey = window.localStorage.getItem(API_KEY_KEY) ?? "";
-  const storedModel = window.localStorage.getItem(MODEL_KEY) ?? DEFAULT_MODEL;
-  if (storedKey || storedModel !== DEFAULT_MODEL) {
-    settingsSnapshot = { apiKey: storedKey, model: storedModel };
+  const stored = read<Partial<Settings> | null>(SETTINGS_KEY, null);
+  if (stored) {
+    settingsSnapshot = {
+      provider: stored.provider ?? DEFAULT_PROVIDER,
+      model: stored.model ?? defaultModel(stored.provider ?? DEFAULT_PROVIDER),
+      keys: stored.keys ?? {},
+      customBaseUrl: stored.customBaseUrl ?? "",
+    };
+    return;
+  }
+
+  // Tek saglayicili surumden goc: eski anahtar Google'a ait.
+  const legacyKey = window.localStorage.getItem(LEGACY_API_KEY) ?? "";
+  if (legacyKey) {
+    const legacyModel =
+      window.localStorage.getItem(LEGACY_MODEL_KEY) ?? defaultModel("google");
+    settingsSnapshot = {
+      provider: "google",
+      model: legacyModel,
+      keys: { google: legacyKey },
+      customBaseUrl: "",
+    };
+    write(SETTINGS_KEY, settingsSnapshot);
   }
 }
 
@@ -127,14 +162,7 @@ export function setLanguage(language: LanguageCode): void {
 export function setSettings(next: Settings): void {
   hydrate();
   settingsSnapshot = next;
-  if (typeof window !== "undefined") {
-    try {
-      window.localStorage.setItem(API_KEY_KEY, next.apiKey);
-      window.localStorage.setItem(MODEL_KEY, next.model);
-    } catch {
-      // Depolama kapali olabilir; ayarlar en azindan bu oturumda gecerli olur.
-    }
-  }
+  write(SETTINGS_KEY, next);
   emit();
 }
 

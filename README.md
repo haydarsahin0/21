@@ -16,18 +16,36 @@ bir parçacık bulutsusu var.
 
 ## Kullanmak için
 
-Kurulum yok. Siteyi aç, ilk açılışta kendi ücretsiz Gemini anahtarını yapıştır,
-bitti. Telefondan da olur.
-
-1. <https://aistudio.google.com/apikey> → Google hesabınla gir → “Create API key”.
-2. Anahtarı kopyala, sitedeki kutuya yapıştır.
-
-Kredi kartı istemiyor, günde 1.000 aramaya kadar ücretsiz.
+Kurulum yok. Siteyi aç, ilk açılışta bir sağlayıcı seçip kendi API anahtarını
+yapıştır, bitti. Telefondan da olur.
 
 **Anahtar nerede duruyor:** yalnızca kendi tarayıcının `localStorage`'ında.
-Sitenin arkasında sunucu yok; istek doğrudan tarayıcından Google'a gidiyor,
-başka hiçbir yere uğramıyor. Ortak kullanılan bir bilgisayardaysan Ayarlar'dan
-alanı boşaltıp kaydederek anahtarı silebilirsin.
+Sitenin arkasında sunucu yok; istek doğrudan tarayıcından sağlayıcıya gidiyor,
+başka hiçbir yere uğramıyor. Anahtarlar sağlayıcı başına ayrı tutuluyor, yani
+aralarında geçiş yaparken tekrar girmen gerekmiyor. Ortak kullanılan bir
+bilgisayardaysan Ayarlar'dan alanı boşaltıp kaydederek silebilirsin.
+
+## Sağlayıcılar
+
+| Sağlayıcı | Ücret | Tarayıcıdan çağrılabiliyor mu? |
+|---|---|---|
+| **Google Gemini** (varsayılan) | Ücretsiz, kart istemiyor, günde 1.000 mesaj | ✅ Ölçtük: CORS izni veriyor |
+| **DeepSeek** | Yeni hesaba 30 gün geçerli 5M token, sonrası kullandıkça öde | ⚠️ Doğrulanmadı |
+| **OpenRouter** | `:free` modeller günde 50 mesaj (10 $ bakiye → 1.000) | ⚠️ Doğrulanmadı (belgeleri destekliyor der) |
+| **Başka (OpenAI uyumlu)** | Kendi adresin — Ollama gibi yerel sunucular dahil | Adrese bağlı |
+
+Site statik olduğu için istek doğrudan tarayıcıdan gidiyor; bu yüzden bir
+sağlayıcının çalışması **CORS izni vermesine** bağlı. Gemini'nin izin verdiğini
+ölçtük (`access-control-allow-origin` başlığını döndürüyor). DeepSeek'i ve
+OpenRouter'ı bu ortamdan test edemedik, o yüzden ayarlarda uyarı çıkıyor.
+
+Denediğinde “ulaşılamadı (CORS)” hatası alırsan o sağlayıcı tarayıcı
+çağrılarına kapalı demektir. Çözüm: **OpenRouter'a geç** — aynı DeepSeek
+modellerine oradan erişebilirsin (`deepseek/deepseek-v4-flash`).
+
+DeepSeek model kimlikleri 24 Temmuz 2026'da değişti: `deepseek-chat` ve
+`deepseek-reasoner` emekli oldu, yerlerine `deepseek-v4-flash` ve
+`deepseek-v4-pro` geldi. Uygulama yenilerini kullanıyor.
 
 ## Ne veriyor
 
@@ -53,14 +71,9 @@ nesnesine bir satır yazman yeterli.
 
 ## Kota
 
-Ücretsiz katmanda günlük sınır **mesaj başına** işler; sohbetin her adımı bir
-mesaj sayılır. Ayarlar'dan model değiştirebilirsin:
-
-| Model | Günlük ücretsiz | Ne zaman |
-|---|---|---|
-| Flash-Lite | 1.000 | Varsayılan, günlük kullanım |
-| Flash | 250 | Nadir kelimelerde daha isabetli |
-| Pro | 100 | En zor kelimeler |
+Sınır **mesaj başına** işler; sohbetin her adımı bir mesaj sayılır. Gemini'de
+Flash-Lite günde 1.000, Flash 250, Pro 100 mesaj. Ayarlar'dan model
+değiştirebilirsin.
 
 Cevaplar akış halinde geldiği için uzun bir cevabı beklemek zorunda değilsin;
 istediğin an **Durdur**'a basabilirsin, o ana kadar gelen metin sohbette kalır.
@@ -99,9 +112,10 @@ components/
   nebula-background.tsx cihaza göre parçacık sayısı seçer, SSR dışı yükler
   ui/                   shadcn bileşenleri + quantum-nebula.tsx + ai-input.tsx
 lib/
-  dictionary.ts         diller, model listesi
-  chat.ts               sohbet promptu + Gemini SSE akışı
-  storage.ts            localStorage: anahtar, dil, kelime defteri
+  dictionary.ts         diller
+  providers.ts          sağlayıcı tanımları (adres, modeller, protokol)
+  chat.ts               sohbet promptu + SSE akışı (Gemini ve OpenAI biçimi)
+  storage.ts            localStorage: anahtarlar, dil, kelime defteri
 python-v1/              ilk sürüm (FastAPI + düz HTML). Artık gerekli değil.
 ```
 

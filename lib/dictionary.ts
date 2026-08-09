@@ -20,10 +20,3 @@ export function normalizeWord(word: string): string {
   return word.trim().replace(/\s+/g, " ").toLocaleLowerCase("tr");
 }
 
-export const GEMINI_MODELS = [
-  { id: "gemini-2.5-flash-lite", label: "Flash-Lite — günde 1.000 mesaj" },
-  { id: "gemini-2.5-flash", label: "Flash — günde 250, daha isabetli" },
-  { id: "gemini-2.5-pro", label: "Pro — günde 100, en isabetli" },
-] as const;
-
-export const DEFAULT_MODEL = GEMINI_MODELS[0].id;

@@ -22,6 +22,7 @@ import {
   normalizeWord,
   type LanguageCode,
 } from "@/lib/dictionary";
+import { getProvider } from "@/lib/providers";
 import * as storage from "@/lib/storage";
 
 const ORB_TONES = { base: "oklch(19% 0.025 252)" };
@@ -91,10 +92,15 @@ export function Chat({
       abortRef.current = controller;
 
       try {
+        const provider = getProvider(settings.provider);
         const full = await streamChat({
           messages: next,
           language,
-          apiKey: settings.apiKey,
+          provider,
+          baseUrl: provider.editableBaseUrl
+            ? settings.customBaseUrl
+            : provider.baseUrl,
+          apiKey: storage.currentKey(settings),
           model: settings.model,
           signal: controller.signal,
           onDelta: (chunk) => setStreaming((prev) => prev + chunk),
@@ -112,7 +118,7 @@ export function Chat({
         abortRef.current = null;
       }
     },
-    [busy, language, messages, settings.apiKey, settings.model],
+    [busy, language, messages, settings],
   );
 
   const stop = () => {
