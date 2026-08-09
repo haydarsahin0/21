@@ -3,23 +3,22 @@
 Hedef dilde bir kelime yaz, ara — karşısında hem **Türkçe anlamı** hem de o
 dilin kendi içindeki **tek dilli açıklaması** ve **eş anlamlıları** çıksın.
 
-Örnek: `verstehen` yazdığında Almanca açıklaması (`den Sinn von etwas
-erfassen`), Türkçe karşılığı (`anlamak, kavramak`) ve `begreifen` / `kapieren`
-gibi eş anlamlıları — her birinin aradaki nüansı Türkçe açıklanmış halde — bir
-arada gelir.
+Örnek: `verstanden` yazdığında sözlük biçimini (`verstehen`) bulur, Almanca
+tanımını (`den Sinn von etwas erfassen`), Türkçe karşılığını (`anlamak,
+kavramak`) ve `begreifen` / `kapieren` gibi eş anlamlıları — her birinin
+nüansı Türkçe açıklanmış halde — bir arada gösterir.
 
-<!-- Ekran görüntüsü için: uygulamayı çalıştırıp bir kelime ara. -->
+Arka planda [three.js](https://threejs.org) ile çalışan, fareye tepki veren
+bir parçacık bulutsusu var.
 
 ## Ne veriyor
-
-Her arama şu alanları döndürür:
 
 | Alan | Örnek |
 |---|---|
 | Sözlük biçimi (lemma) | `verstanden` yazdın → `verstehen` |
 | Türkçe karşılıklar | anlamak, kavramak |
 | Türkçe kullanım notu | nerede, nasıl kullanılır |
-| **Hedef dilde tanım** | `den Sinn von etwas erfassen; geistig begreifen` |
+| **Hedef dilde tanım** | `den Sinn von etwas geistig erfassen` |
 | Eş anlamlılar + nüans | `begreifen` — daha çok zihinsel kavrayışı vurgular |
 | Zıt anlamlılar | `missverstehen` |
 | Sık kullanılan kalıplar | `sich gut verstehen mit` |
@@ -31,8 +30,8 @@ Eş/zıt anlamlı kelimelere tıklayınca doğrudan o kelime aranır — kelime 
 gezinerek öğrenmek için.
 
 Desteklenen diller: Almanca, İngilizce, Fransızca, İspanyolca, İtalyanca,
-Rusça, Arapça. Yenisini eklemek için `backend/config.py` içindeki `LANGUAGES`
-sözlüğüne bir satır yazman yeterli.
+Rusça, Arapça. Yenisini eklemek için `lib/dictionary.ts` içindeki `LANGUAGES`
+nesnesine bir satır yazman yeterli.
 
 ## Maliyet: sıfır
 
@@ -46,36 +45,36 @@ sağlayıcıların hepsi çalışır:
 | **OpenRouter** | 50/gün (10 $ kredi yatırılmışsa 1.000/gün) | `:free` modeller |
 | **Ollama** | Sınırsız | Tamamen lokal, internetsiz çalışır |
 
-Ayrıca her sonuç SQLite'a yazılır. Aynı kelimeyi ikinci kez aradığında API'ye
-hiç gidilmez, yani günlük kota pratikte çok daha uzun yeter.
+Her sonuç tarayıcıda `localStorage`'a yazılır. Aynı kelimeyi ikinci kez
+aradığında modele hiç gidilmez ("önbellekten" rozeti bunu gösterir), yani
+günlük kota pratikte çok daha uzun yeter. Kelime defteri de aynı yerde durur —
+sunucuda veritabanı yok, dolayısıyla Vercel'in ücretsiz katmanı yeterli.
 
 ## Kurulum
 
 ```bash
 git clone https://github.com/haydarsahin0/21.git
 cd 21
+npm install
 
-python3 -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-
-cp .env.example .env
+cp .env.example .env.local     # LLM_API_KEY satırına anahtarını yaz
+npm run dev
 ```
 
-`.env` dosyasını aç, `LLM_API_KEY` satırına anahtarını yaz. Gemini anahtarını
-<https://aistudio.google.com/apikey> adresinden ücretsiz alabilirsin.
+<http://localhost:3000> aç. Anahtarı <https://aistudio.google.com/apikey>
+adresinden ücretsiz alabilirsin.
 
-Çalıştır:
+### Canlıya alma (Vercel, ücretsiz)
 
-```bash
-uvicorn backend.main:app --reload
-```
-
-Tarayıcıda <http://127.0.0.1:8000> aç.
+1. Depoyu GitHub'a push et.
+2. <https://vercel.com/new> → depoyu seç.
+3. Environment Variables bölümüne `LLM_API_KEY` (ve istersen `LLM_BASE_URL`,
+   `LLM_MODEL`) ekle.
+4. Deploy. Ayar gerekmiyor; Next.js otomatik algılanır.
 
 ### Sağlayıcı değiştirme
 
-`.env` içindeki üç satırı değiştirmen yeterli — kodda hiçbir şeye dokunma:
+`.env.local` içindeki üç satırı değiştir, kodda hiçbir şeye dokunma:
 
 ```bash
 LLM_BASE_URL=https://api.groq.com/openai/v1
@@ -83,52 +82,47 @@ LLM_MODEL=llama-3.3-70b-versatile
 LLM_API_KEY=gsk_...
 ```
 
-`.env.example` dosyasında Gemini, Groq, OpenRouter ve Ollama için hazır
-bloklar var.
-
-## Testler
-
-Gerçek model sağlayıcısına gitmeden bütün akışı dolaşır:
-
-```bash
-python -m tests.smoke
-```
-
 ## Yapı
 
 ```
-backend/
-  config.py   ayarlar + desteklenen diller
-  schema.py   sonucun veri modeli
-  llm.py      OpenAI-uyumlu çağrı + sözlük promptu
-  store.py    SQLite: önbellek, geçmiş, kelime defteri
-  main.py     FastAPI uçları + statik arayüz
-frontend/
-  index.html  arama ekranı + kelime defteri sekmesi
-  style.css   açık/koyu tema
-  app.js      arama, kaydetme, zincirleme arama
-tests/
-  smoke.py    uçtan uca duman testi
+app/
+  page.tsx              ana sayfa (bulutsu arka planı + sözlük)
+  demo/page.tsx         yalnız parçacık sahnesi
+  api/lookup/route.ts   sunucu tarafı model çağrısı (anahtar burada kalır)
+  globals.css           tema değişkenleri (shadcn)
+components/
+  dictionary.tsx        arama, sekmeler, kelime defteri
+  result-card.tsx       sonuç kartı
+  nebula-background.tsx cihaza göre parçacık sayısı seçer, SSR dışı yükler
+  ui/                   shadcn bileşenleri + quantum-nebula.tsx
+lib/
+  dictionary.ts         tipler, diller
+  llm.ts                OpenAI-uyumlu çağrı + sözlük promptu
+  storage.ts            localStorage: önbellek, geçmiş, kelime defteri
+python-v1/              ilk sürüm (FastAPI + düz HTML). Artık gerekli değil.
 ```
 
-## API
+`components/ui/` yolu şart: `components.json` içindeki `aliases.ui` oraya
+işaret ediyor, `npx shadcn@latest add <bileşen>` komutu dosyaları oraya yazıyor
+ve bileşenler birbirini `@/components/ui/...` olarak import ediyor. Klasörü
+taşırsan bu üçünü birlikte güncellemen gerekir.
 
-| Uç | Açıklama |
-|---|---|
-| `GET /api/lookup?word=&lang=&refresh=` | Kelime araması |
-| `GET /api/languages` | Desteklenen diller |
-| `GET /api/recent?limit=` | Son aramalar |
-| `GET /api/saved?lang=` | Kelime defteri |
-| `POST /api/saved` | Deftere ekle |
-| `DELETE /api/saved?word=&lang=` | Defterden sil |
-| `GET /api/saved/export?lang=` | Anki'ye alınabilir TSV |
+## Parçacık arka planı hakkında
 
-## Sıradaki adımlar
+`components/ui/quantum-nebula.tsx` içindeki simülasyon **CPU'da** dönüyor.
+Maliyeti parçacık sayısıyla doğru orantılı — ölçüm: 50.000 parçacık için
+kare başına ~7,5 ms, yani 60 fps bütçesinin yaklaşık yarısı.
 
-Bu iskeletin üzerine eklenmesi doğal olan şeyler:
+`components/nebula-background.tsx` bu yüzden sayıyı cihaza göre seçiyor:
+telefonda 8.000, az çekirdekli makinede 20.000, geri kalanda 50.000. Sabit bir
+değer istiyorsan bileşene `particleCount` prop'u ver.
 
-- **Aralıklı tekrar (SM-2/FSRS)** — kelime defterine `next_review` ve `ease`
-  kolonları ekleyip günlük tekrar listesi çıkarmak
-- **Quiz modu** — defterdeki kelimelerden çoktan seçmeli soru üretmek
-- **Telaffuz** — tarayıcının `speechSynthesis` API'siyle kelimeyi seslendirmek
-- **Toplu içe aktarma** — bir metin yapıştır, bilmediğin kelimeleri toplu ara
+`prefers-reduced-motion: reduce` açıkken tek kare çizilip animasyon durur.
+
+## Testler
+
+```bash
+npm run lint      # ESLint + React derleyici kuralları
+npx tsc --noEmit  # tip kontrolü
+npm run build     # üretim derlemesi
+```
