@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useRef, useState, useSyncExternalStore } from "react";
-import { Download, Loader2, Search, Trash2 } from "lucide-react";
+import { Download, Loader2, Search, Settings2, Trash2 } from "lucide-react";
 
 import { ResultCard } from "@/components/result-card";
+import { SettingsPanel } from "@/components/settings-panel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,7 @@ import {
   type LanguageCode,
   type LookupResult,
 } from "@/lib/dictionary";
+import { lookupWithGemini } from "@/lib/gemini";
 import * as storage from "@/lib/storage";
 
 export function Dictionary() {
@@ -39,7 +41,13 @@ export function Dictionary() {
     storage.getSavedSnapshot,
     storage.getSavedServerSnapshot,
   );
+  const settings = useSyncExternalStore(
+    storage.subscribe,
+    storage.getSettingsSnapshot,
+    storage.getSettingsServerSnapshot,
+  );
 
+  const [showSettings, setShowSettings] = useState(false);
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<LookupResult | null>(null);
   const [cached, setCached] = useState(false);
@@ -68,28 +76,25 @@ export function Dictionary() {
         }
       }
 
+      const { apiKey, model } = storage.getSettingsSnapshot();
+      if (!apiKey) {
+        setShowSettings(true);
+        return;
+      }
+
       const id = ++requestId.current;
       setLoading(true);
 
       try {
-        const params = new URLSearchParams({ word, lang });
-        const response = await fetch(`/api/lookup?${params}`);
-        const payload = await response.json();
+        const data = await lookupWithGemini({ word, language: lang, apiKey, model });
         if (id !== requestId.current) return;
 
-        if (!response.ok) {
-          setError(payload.error ?? "Bir şeyler ters gitti.");
-          setResult(null);
-          return;
-        }
-
-        const data = payload as LookupResult;
         if (data.found) storage.putCached(word, lang, data);
         setResult(data);
         setCached(false);
       } catch (err) {
         if (id !== requestId.current) return;
-        setError(`Sunucuya ulaşılamadı: ${String(err)}`);
+        setError(err instanceof Error ? err.message : String(err));
         setResult(null);
       } finally {
         if (id === requestId.current) setLoading(false);
@@ -136,9 +141,21 @@ export function Dictionary() {
     URL.revokeObjectURL(url);
   };
 
+  // Anahtar yoksa yapilacak tek is anahtari almak; arama arayuzunu gostermek
+  // kullaniciyi calismayacak bir kutuya yonlendirmek olurdu.
+  if (!settings.apiKey || showSettings) {
+    return (
+      <SettingsPanel
+        settings={settings}
+        firstRun={!settings.apiKey}
+        onDone={() => setShowSettings(false)}
+      />
+    );
+  }
+
   return (
     <Tabs defaultValue="search" className="gap-6">
-      <div className="flex justify-center">
+      <div className="flex items-center justify-center gap-2">
         <TabsList>
           <TabsTrigger value="search">Ara</TabsTrigger>
           <TabsTrigger value="saved">
@@ -146,6 +163,14 @@ export function Dictionary() {
             {visibleSaved.length > 0 ? ` (${visibleSaved.length})` : ""}
           </TabsTrigger>
         </TabsList>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Ayarlar"
+          onClick={() => setShowSettings(true)}
+        >
+          <Settings2 />
+        </Button>
       </div>
 
       <TabsContent value="search" className="space-y-6">

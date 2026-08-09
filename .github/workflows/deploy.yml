@@ -1,0 +1,62 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [claude/github-chatbot-tool-d8qrup]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Ust uste gelen dagitimlarda sonuncusu kazansin, ama calisan biri yarida
+# kesilmesin.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Configure Pages
+        id: pages
+        uses: actions/configure-pages@v5
+        with:
+          # Depoda Pages henuz acilmamissa bu adim aciyor; boylece elle ayar
+          # yapmaya gerek kalmiyor.
+          enablement: true
+
+      - run: npm ci
+
+      - run: npm run build
+        env:
+          # Proje sitesi <kullanici>.github.io/<depo>/ altinda yayinlanir.
+          NEXT_PUBLIC_BASE_PATH: ${{ steps.pages.outputs.base_path }}
+
+      - name: Jekyll islemesini kapat
+        # Alt cizgiyle baslayan Next.js klasorleri (_next) aksi halde Pages
+        # tarafindan yok sayilir.
+        run: touch out/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

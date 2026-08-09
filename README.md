@@ -1,5 +1,7 @@
 # Kelime Sözlüğü
 
+**Canlı: <https://haydarsahin0.github.io/21/>**
+
 Hedef dilde bir kelime yaz, ara — karşısında hem **Türkçe anlamı** hem de o
 dilin kendi içindeki **tek dilli açıklaması** ve **eş anlamlıları** çıksın.
 
@@ -10,6 +12,21 @@ nüansı Türkçe açıklanmış halde — bir arada gösterir.
 
 Arka planda [three.js](https://threejs.org) ile çalışan, fareye tepki veren
 bir parçacık bulutsusu var.
+
+## Kullanmak için
+
+Kurulum yok. Siteyi aç, ilk açılışta kendi ücretsiz Gemini anahtarını yapıştır,
+bitti. Telefondan da olur.
+
+1. <https://aistudio.google.com/apikey> → Google hesabınla gir → “Create API key”.
+2. Anahtarı kopyala, sitedeki kutuya yapıştır.
+
+Kredi kartı istemiyor, günde 1.000 aramaya kadar ücretsiz.
+
+**Anahtar nerede duruyor:** yalnızca kendi tarayıcının `localStorage`'ında.
+Sitenin arkasında sunucu yok; istek doğrudan tarayıcından Google'a gidiyor,
+başka hiçbir yere uğramıyor. Ortak kullanılan bir bilgisayardaysan Ayarlar'dan
+alanı boşaltıp kaydederek anahtarı silebilirsin.
 
 ## Ne veriyor
 
@@ -27,60 +44,40 @@ bir parçacık bulutsusu var.
 | CEFR seviyesi | A2 |
 
 Eş/zıt anlamlı kelimelere tıklayınca doğrudan o kelime aranır — kelime ağında
-gezinerek öğrenmek için.
+gezinerek öğrenmek için. Kelime defterine eklediklerini Anki'ye alınabilen TSV
+olarak indirebilirsin.
 
 Desteklenen diller: Almanca, İngilizce, Fransızca, İspanyolca, İtalyanca,
 Rusça, Arapça. Yenisini eklemek için `lib/dictionary.ts` içindeki `LANGUAGES`
 nesnesine bir satır yazman yeterli.
 
-## Maliyet: sıfır
+## Kotanı nasıl uzatır
 
-Uygulama OpenAI-uyumlu herhangi bir endpoint'le konuşur, yani ücretsiz
-sağlayıcıların hepsi çalışır:
+Her sonuç tarayıcıda saklanır. Aynı kelimeyi ikinci kez aradığında Google'a
+hiç gidilmez — sonuç kartında “önbellekten” rozeti bunu gösterir. Tekrar
+ederek çalıştığın için günlük 1.000 arama pratikte çok daha uzun yeter.
 
-| Sağlayıcı | Ücretsiz limit | Not |
+Ayarlar'dan model de değiştirebilirsin:
+
+| Model | Günlük ücretsiz | Ne zaman |
 |---|---|---|
-| **Google Gemini** (varsayılan) | Flash-Lite ile 1.000 istek/gün | Kredi kartı istemiyor |
-| **Groq** | 1.000 istek/gün | Çok hızlı |
-| **OpenRouter** | 50/gün (10 $ kredi yatırılmışsa 1.000/gün) | `:free` modeller |
-| **Ollama** | Sınırsız | Tamamen lokal, internetsiz çalışır |
+| Flash-Lite | 1.000 | Varsayılan, günlük kullanım |
+| Flash | 250 | Nadir kelimelerde daha isabetli |
+| Pro | 100 | En zor kelimeler |
 
-Her sonuç tarayıcıda `localStorage`'a yazılır. Aynı kelimeyi ikinci kez
-aradığında modele hiç gidilmez ("önbellekten" rozeti bunu gösterir), yani
-günlük kota pratikte çok daha uzun yeter. Kelime defteri de aynı yerde durur —
-sunucuda veritabanı yok, dolayısıyla Vercel'in ücretsiz katmanı yeterli.
-
-## Kurulum
+## Geliştirme
 
 ```bash
-git clone https://github.com/haydarsahin0/21.git
-cd 21
 npm install
-
-cp .env.example .env.local     # LLM_API_KEY satırına anahtarını yaz
-npm run dev
+npm run dev        # http://localhost:3000
+npm run build      # statik çıktı -> out/
+npm run lint
+npx tsc --noEmit
 ```
 
-<http://localhost:3000> aç. Anahtarı <https://aistudio.google.com/apikey>
-adresinden ücretsiz alabilirsin.
-
-### Canlıya alma (Vercel, ücretsiz)
-
-1. Depoyu GitHub'a push et.
-2. <https://vercel.com/new> → depoyu seç.
-3. Environment Variables bölümüne `LLM_API_KEY` (ve istersen `LLM_BASE_URL`,
-   `LLM_MODEL`) ekle.
-4. Deploy. Ayar gerekmiyor; Next.js otomatik algılanır.
-
-### Sağlayıcı değiştirme
-
-`.env.local` içindeki üç satırı değiştir, kodda hiçbir şeye dokunma:
-
-```bash
-LLM_BASE_URL=https://api.groq.com/openai/v1
-LLM_MODEL=llama-3.3-70b-versatile
-LLM_API_KEY=gsk_...
-```
+Site statik export ediliyor (`output: "export"`), sunucu tarafı kod yok.
+Varsayılan branch'e her push'ta `.github/workflows/deploy.yml` çalışıp GitHub
+Pages'e dağıtıyor.
 
 ## Yapı
 
@@ -88,17 +85,18 @@ LLM_API_KEY=gsk_...
 app/
   page.tsx              ana sayfa (bulutsu arka planı + sözlük)
   demo/page.tsx         yalnız parçacık sahnesi
-  api/lookup/route.ts   sunucu tarafı model çağrısı (anahtar burada kalır)
   globals.css           tema değişkenleri (shadcn)
 components/
   dictionary.tsx        arama, sekmeler, kelime defteri
   result-card.tsx       sonuç kartı
+  settings-panel.tsx    anahtar girişi ve model seçimi
   nebula-background.tsx cihaza göre parçacık sayısı seçer, SSR dışı yükler
   ui/                   shadcn bileşenleri + quantum-nebula.tsx
 lib/
   dictionary.ts         tipler, diller
-  llm.ts                OpenAI-uyumlu çağrı + sözlük promptu
-  storage.ts            localStorage: önbellek, geçmiş, kelime defteri
+  llm.ts                sözlük promptu + cevap ayrıştırma (saf, ağ çağrısı yok)
+  gemini.ts             tarayıcıdan Gemini çağrısı
+  storage.ts            localStorage: anahtar, önbellek, geçmiş, kelime defteri
 python-v1/              ilk sürüm (FastAPI + düz HTML). Artık gerekli değil.
 ```
 
@@ -119,10 +117,9 @@ değer istiyorsan bileşene `particleCount` prop'u ver.
 
 `prefers-reduced-motion: reduce` açıkken tek kare çizilip animasyon durur.
 
-## Testler
+## Sunucu tarafında anahtar tutmak istersen
 
-```bash
-npm run lint      # ESLint + React derleyici kuralları
-npx tsc --noEmit  # tip kontrolü
-npm run build     # üretim derlemesi
-```
+Bu sürüm bilerek statik: her kullanıcı kendi anahtarını getiriyor. Anahtarı
+sunucuda tutan (ve kullanıcıdan hiç anahtar istemeyen) bir sürüm istersen
+`python-v1/` altındaki FastAPI uygulaması tam olarak bunu yapıyor; Vercel'de
+Next.js API rotasıyla aynısını kuran hâli de git geçmişinde duruyor.

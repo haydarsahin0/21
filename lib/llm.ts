@@ -7,28 +7,11 @@ import {
 } from "./dictionary";
 
 /**
- * Sunucu tarafi model cagrisi.
- *
- * Gemini, Groq, OpenRouter ve Ollama'nin hepsi ayni OpenAI /chat/completions
- * sozlesmesini konusuyor, bu yuzden saglayici degistirmek uc ortam degiskeni.
- * Anahtar yalniz sunucuda okunuyor; tarayiciya hicbir zaman gitmiyor.
+ * Prompt ve cevap ayristirma. Bu dosya saf: ne ag cagrisi yapar ne de ortam
+ * degiskeni okur, boylece hem tarayicida hem sunucuda kullanilabilir.
  */
-const BASE_URL = (
-  process.env.LLM_BASE_URL ??
-  "https://generativelanguage.googleapis.com/v1beta/openai"
-).replace(/\/$/, "");
-const MODEL = process.env.LLM_MODEL ?? "gemini-2.5-flash-lite";
-const API_KEY = process.env.LLM_API_KEY ?? "";
 
-export class LLMError extends Error {
-  status: number;
-  constructor(message: string, status = 502) {
-    super(message);
-    this.status = status;
-  }
-}
-
-function systemPrompt(language: LanguageCode): string {
+export function systemPrompt(language: LanguageCode): string {
   const { name, native } = LANGUAGES[language];
   return `Sen deneyimli bir sözlükbilimci ve dil öğretmenisin.
 Kullanıcı sana ${name} (${native}) dilinde tek bir kelime verecek.
@@ -73,6 +56,8 @@ Dönen JSON şeması:
 }`;
 }
 
+export class LookupError extends Error {}
+
 /**
  * Modelin cevabindan JSON govdesini cikarir. Bazi modeller istenmese de ```json
  * citleri ekliyor ya da tanimin onune bir cumle yaziyor; ikisini de tolere ediyoruz.
@@ -94,11 +79,11 @@ export function extractJson(text: string): unknown {
     try {
       return JSON.parse(candidate.slice(start, end + 1));
     } catch (error) {
-      throw new LLMError(`Model geçerli JSON döndürmedi: ${String(error)}`);
+      throw new LookupError(`Model geçerli JSON döndürmedi: ${String(error)}`);
     }
   }
 
-  throw new LLMError("Model cevabında JSON bulunamadı.");
+  throw new LookupError("Model cevabında JSON bulunamadı.");
 }
 
 const asString = (value: unknown): string =>
@@ -172,60 +157,4 @@ export function normalizeResult(
       return [];
     }),
   };
-}
-
-export async function lookupWord(
-  word: string,
-  language: LanguageCode,
-): Promise<LookupResult> {
-  if (!API_KEY) {
-    throw new LLMError(
-      "LLM_API_KEY tanımlı değil. .env.local dosyasına anahtarını ekle.",
-      500,
-    );
-  }
-
-  let response: Response;
-  try {
-    response = await fetch(`${BASE_URL}/chat/completions`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: "system", content: systemPrompt(language) },
-          { role: "user", content: word },
-        ],
-        temperature: 0.2,
-        response_format: { type: "json_object" },
-      }),
-    });
-  } catch (error) {
-    throw new LLMError(`Sağlayıcıya ulaşılamadı: ${String(error)}`);
-  }
-
-  if (response.status === 429) {
-    throw new LLMError(
-      "Günlük ücretsiz kota doldu (429). Yarın tekrar dene ya da başka bir sağlayıcıya geç.",
-      429,
-    );
-  }
-
-  if (!response.ok) {
-    const detail = (await response.text()).slice(0, 300);
-    throw new LLMError(`Sağlayıcı ${response.status} döndü: ${detail}`);
-  }
-
-  const payload = (await response.json()) as {
-    choices?: { message?: { content?: string } }[];
-  };
-  const content = payload.choices?.[0]?.message?.content;
-  if (!content) {
-    throw new LLMError("Sağlayıcıdan boş cevap geldi.");
-  }
-
-  return normalizeResult(extractJson(content), word, language);
 }

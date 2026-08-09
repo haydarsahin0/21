@@ -7,6 +7,7 @@ import {
   type LanguageCode,
   type LookupResult,
 } from "./dictionary";
+import { DEFAULT_MODEL } from "./gemini";
 
 /**
  * Onbellek, gecmis, kelime defteri ve dil tercihi tarayicida duruyor.
@@ -25,6 +26,8 @@ const CACHE_KEY = "sozluk:cache:v1";
 const SAVED_KEY = "sozluk:saved:v1";
 const HISTORY_KEY = "sozluk:history:v1";
 const LANGUAGE_KEY = "sozluk:lang:v1";
+const API_KEY_KEY = "sozluk:apikey:v1";
+const MODEL_KEY = "sozluk:model:v1";
 
 const CACHE_TTL_MS = 90 * 24 * 60 * 60 * 1000; // 90 gun
 const CACHE_LIMIT = 500;
@@ -87,9 +90,17 @@ function emit(): void {
 const EMPTY_SAVED: SavedWord[] = [];
 const EMPTY_HISTORY: HistoryEntry[] = [];
 
+export interface Settings {
+  apiKey: string;
+  model: string;
+}
+
+const EMPTY_SETTINGS: Settings = { apiKey: "", model: DEFAULT_MODEL };
+
 let savedSnapshot: SavedWord[] = EMPTY_SAVED;
 let historySnapshot: HistoryEntry[] = EMPTY_HISTORY;
 let languageSnapshot: LanguageCode = DEFAULT_LANGUAGE;
+let settingsSnapshot: Settings = EMPTY_SETTINGS;
 let hydrated = false;
 
 /** Ilk istemci okumasinda localStorage'dan bir kez doldurulur. */
@@ -101,6 +112,14 @@ function hydrate(): void {
   const storedLanguage = window.localStorage.getItem(LANGUAGE_KEY);
   if (storedLanguage && isLanguageCode(storedLanguage)) {
     languageSnapshot = storedLanguage;
+  }
+  // Anahtar ve model duz metin olarak saklaniyor: sifrelemek guvenlik
+  // kazandirmaz, cunku cozme anahtari da ayni sayfada olurdu. Onemli olan
+  // anahtarin bu cihazdan disari cikmamasi.
+  const storedKey = window.localStorage.getItem(API_KEY_KEY) ?? "";
+  const storedModel = window.localStorage.getItem(MODEL_KEY) ?? DEFAULT_MODEL;
+  if (storedKey || storedModel !== DEFAULT_MODEL) {
+    settingsSnapshot = { apiKey: storedKey, model: storedModel };
   }
 }
 
@@ -119,9 +138,29 @@ export function getLanguageSnapshot(): LanguageCode {
   return languageSnapshot;
 }
 
+export function getSettingsSnapshot(): Settings {
+  hydrate();
+  return settingsSnapshot;
+}
+
 export const getSavedServerSnapshot = (): SavedWord[] => EMPTY_SAVED;
 export const getHistoryServerSnapshot = (): HistoryEntry[] => EMPTY_HISTORY;
 export const getLanguageServerSnapshot = (): LanguageCode => DEFAULT_LANGUAGE;
+export const getSettingsServerSnapshot = (): Settings => EMPTY_SETTINGS;
+
+export function setSettings(next: Settings): void {
+  hydrate();
+  settingsSnapshot = next;
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.setItem(API_KEY_KEY, next.apiKey);
+      window.localStorage.setItem(MODEL_KEY, next.model);
+    } catch {
+      // Depolama kapali olabilir; ayarlar en azindan bu oturumda gecerli olur.
+    }
+  }
+  emit();
+}
 
 // --- Sorgu onbellegi --------------------------------------------------------
 
