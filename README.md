@@ -2,13 +2,14 @@
 
 **Canlı: <https://haydarsahin0.github.io/21/>**
 
-Hedef dilde bir kelime yaz, ara — karşısında hem **Türkçe anlamı** hem de o
-dilin kendi içindeki **tek dilli açıklaması** ve **eş anlamlıları** çıksın.
+Hedef dilde bir kelime yaz, **sohbet ederek adım adım aç**.
 
-Örnek: `verstanden` yazdığında sözlük biçimini (`verstehen`) bulur, Almanca
-tanımını (`den Sinn von etwas erfassen`), Türkçe karşılığını (`anlamak,
-kavramak`) ve `begreifen` / `kapieren` gibi eş anlamlıları — her birinin
-nüansı Türkçe açıklanmış halde — bir arada gösterir.
+Uygulama bilgiyi toptan vermiyor. `verstehen` yazdığında önce yalnızca Türkçe
+karşılığını ve nerede kullanıldığını söyler, sonra durur ve sana sorar. Almanca
+tanımını, eş anlamlıları ve nüanslarını, örnek cümleleri, çekimleri ancak sen
+istedikçe getirir — her adım ayrı bir mesaj olarak, yazılırken akarak gelir.
+Aradan sonra kendi sorunu da sorabilirsin; model konuştuğunuz kelimeyi
+hatırlıyor.
 
 Arka planda [three.js](https://threejs.org) ile çalışan, fareye tepki veren
 bir parçacık bulutsusu var.
@@ -30,40 +31,39 @@ alanı boşaltıp kaydederek anahtarı silebilirsin.
 
 ## Ne veriyor
 
-| Alan | Örnek |
-|---|---|
-| Sözlük biçimi (lemma) | `verstanden` yazdın → `verstehen` |
-| Türkçe karşılıklar | anlamak, kavramak |
-| Türkçe kullanım notu | nerede, nasıl kullanılır |
-| **Hedef dilde tanım** | `den Sinn von etwas geistig erfassen` |
-| Eş anlamlılar + nüans | `begreifen` — daha çok zihinsel kavrayışı vurgular |
-| Zıt anlamlılar | `missverstehen` |
-| Sık kullanılan kalıplar | `sich gut verstehen mit` |
-| Örnek cümleler + çeviri | — |
-| Biçim bilgisi | artikel, çoğul, fiil çekimleri |
-| CEFR seviyesi | A2 |
+İlk cevaptan sonra altta hazır adım düğmeleri çıkar; birine basmak sohbeti o
+yöne götürür:
 
-Eş/zıt anlamlı kelimelere tıklayınca doğrudan o kelime aranır — kelime ağında
-gezinerek öğrenmek için. Kelime defterine eklediklerini Anki'ye alınabilen TSV
-olarak indirebilirsin.
+| Adım | Ne gelir |
+|---|---|
+| Bu dilde nasıl tanımlanır? | Hedef dilin kendi içinde, tek dilli tanım |
+| Eş anlamlıları | En fazla üç tane, her birinin nüansı Türkçe açıklanmış |
+| Örnek cümle | İki cümle + Türkçe çevirileri |
+| Sık kullanılan kalıplar | `sich gut verstehen mit` gibi birliktelikler |
+| Çekimleri / biçim bilgisi | Artikel, çoğul, fiil çekimleri |
+| Beni sınav et | Tek soru sorar ve cevabını bekler |
+
+Düğmeleri kullanmak zorunda değilsin — kendi sorunu da yazabilirsin.
+Konuştuğun kelimeyi tek tuşla kelime defterine ekleyebilir, defteri Anki'ye
+alınabilen TSV olarak indirebilirsin.
 
 Desteklenen diller: Almanca, İngilizce, Fransızca, İspanyolca, İtalyanca,
 Rusça, Arapça. Yenisini eklemek için `lib/dictionary.ts` içindeki `LANGUAGES`
 nesnesine bir satır yazman yeterli.
 
-## Kotanı nasıl uzatır
+## Kota
 
-Her sonuç tarayıcıda saklanır. Aynı kelimeyi ikinci kez aradığında Google'a
-hiç gidilmez — sonuç kartında “önbellekten” rozeti bunu gösterir. Tekrar
-ederek çalıştığın için günlük 1.000 arama pratikte çok daha uzun yeter.
-
-Ayarlar'dan model de değiştirebilirsin:
+Ücretsiz katmanda günlük sınır **mesaj başına** işler; sohbetin her adımı bir
+mesaj sayılır. Ayarlar'dan model değiştirebilirsin:
 
 | Model | Günlük ücretsiz | Ne zaman |
 |---|---|---|
 | Flash-Lite | 1.000 | Varsayılan, günlük kullanım |
 | Flash | 250 | Nadir kelimelerde daha isabetli |
 | Pro | 100 | En zor kelimeler |
+
+Cevaplar akış halinde geldiği için uzun bir cevabı beklemek zorunda değilsin;
+istediğin an **Durdur**'a basabilirsin, o ana kadar gelen metin sohbette kalır.
 
 ## Geliştirme
 
@@ -88,20 +88,20 @@ gerektirmiyor hem de ilk push'ta Pages'i kendiliğinden açıyor.
 
 ```
 app/
-  page.tsx              ana sayfa (bulutsu arka planı + sözlük)
+  page.tsx              ana sayfa (bulutsu arka planı + sohbet)
   demo/page.tsx         yalnız parçacık sahnesi
   globals.css           tema değişkenleri (shadcn)
+  ai-input/page.tsx     yalnız MorphPanel (Ask AI) bileşeni
 components/
-  dictionary.tsx        arama, sekmeler, kelime defteri
-  result-card.tsx       sonuç kartı
+  dictionary.tsx        sekmeler, dil seçimi, kelime defteri
+  chat.tsx              sohbet akışı, adım düğmeleri, durdurma
   settings-panel.tsx    anahtar girişi ve model seçimi
   nebula-background.tsx cihaza göre parçacık sayısı seçer, SSR dışı yükler
-  ui/                   shadcn bileşenleri + quantum-nebula.tsx
+  ui/                   shadcn bileşenleri + quantum-nebula.tsx + ai-input.tsx
 lib/
-  dictionary.ts         tipler, diller
-  llm.ts                sözlük promptu + cevap ayrıştırma (saf, ağ çağrısı yok)
-  gemini.ts             tarayıcıdan Gemini çağrısı
-  storage.ts            localStorage: anahtar, önbellek, geçmiş, kelime defteri
+  dictionary.ts         diller, model listesi
+  chat.ts               sohbet promptu + Gemini SSE akışı
+  storage.ts            localStorage: anahtar, dil, kelime defteri
 python-v1/              ilk sürüm (FastAPI + düz HTML). Artık gerekli değil.
 ```
 

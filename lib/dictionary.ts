@@ -16,50 +16,14 @@ export function isLanguageCode(value: string): value is LanguageCode {
   return value in LANGUAGES;
 }
 
-export interface Term {
-  word: string;
-  note: string;
-}
-
-export interface Example {
-  sentence: string;
-  translation: string;
-}
-
-export interface Morphology {
-  article: string;
-  plural: string;
-  verbForms: string;
-  other: string;
-}
-
-export interface LookupResult {
-  word: string;
-  language: LanguageCode;
-  found: boolean;
-  lemma: string;
-  correctionNote: string;
-  ipa: string;
-  partOfSpeech: string;
-  cefr: string;
-  morphology: Morphology;
-  turkishMeanings: string[];
-  turkishExplanation: string;
-  /** Hedef dilin kendi içindeki tanımı — Almanca kelime için Almanca açıklama. */
-  nativeDefinition: string;
-  synonyms: Term[];
-  antonyms: Term[];
-  collocations: string[];
-  examples: Example[];
-}
-
-export const EMPTY_MORPHOLOGY: Morphology = {
-  article: "",
-  plural: "",
-  verbForms: "",
-  other: "",
-};
-
 export function normalizeWord(word: string): string {
   return word.trim().replace(/\s+/g, " ").toLocaleLowerCase("tr");
 }
+
+export const GEMINI_MODELS = [
+  { id: "gemini-2.5-flash-lite", label: "Flash-Lite — günde 1.000 mesaj" },
+  { id: "gemini-2.5-flash", label: "Flash — günde 250, daha isabetli" },
+  { id: "gemini-2.5-pro", label: "Pro — günde 100, en isabetli" },
+] as const;
+
+export const DEFAULT_MODEL = GEMINI_MODELS[0].id;

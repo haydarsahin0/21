@@ -12,8 +12,8 @@ export default function Home() {
             Kelime Sözlüğü
           </h1>
           <p className="text-muted-foreground mt-3 text-balance">
-            Hedef dilde ara — Türkçe karşılığı, o dilin kendi tanımı ve eş
-            anlamlıları bir arada.
+            Bir kelime yaz, sohbet ederek adım adım aç: önce anlamı, sonra sen
+            istedikçe tanımı, eş anlamlıları, örnekleri.
           </p>
         </header>
 

@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { GEMINI_MODELS } from "@/lib/gemini";
+import { GEMINI_MODELS } from "@/lib/dictionary";
 import * as storage from "@/lib/storage";
 
 export function SettingsPanel({
