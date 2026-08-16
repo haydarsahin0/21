@@ -6,7 +6,7 @@ import {
   normalizeWord,
   type LanguageCode,
 } from "./dictionary";
-import { DEFAULT_PROVIDER, defaultModel } from "./providers";
+import { DEFAULT_PROVIDER, defaultModel, isKnownProvider } from "./providers";
 
 /**
  * Anahtar, dil tercihi ve kelime defteri tarayicida duruyor.
@@ -22,7 +22,7 @@ const SAVED_KEY = "sozluk:saved:v1";
 const LANGUAGE_KEY = "sozluk:lang:v1";
 const SETTINGS_KEY = "sozluk:settings:v2";
 const GOAL_KEY = "sozluk:goal:v1";
-// v1 anahtarlari: yalniz Gemini varken kullaniliyordu, goc icin okunuyor.
+// v1 anahtarlari: yalniz tek saglayici varken kullaniliyordu, temizlik icin.
 const LEGACY_API_KEY = "sozluk:apikey:v1";
 const LEGACY_MODEL_KEY = "sozluk:model:v1";
 
@@ -44,8 +44,6 @@ export interface Settings {
   explainLevel: ExplainLevel;
   /** Saglayici basina anahtar: saglayici degistirince oncekini kaybetme. */
   keys: Record<string, string>;
-  /** Yalniz "custom" saglayici icin. */
-  customBaseUrl: string;
 }
 
 /** Secili saglayicinin anahtari. */
@@ -91,7 +89,6 @@ const EMPTY_SETTINGS: Settings = {
   model: defaultModel(DEFAULT_PROVIDER),
   explainLevel: "A2-B1",
   keys: {},
-  customBaseUrl: "",
 };
 
 let savedSnapshot: SavedWord[] = EMPTY_SAVED;
@@ -116,29 +113,30 @@ function hydrate(): void {
   // cihazdan disari cikmamasi.
   const stored = read<Partial<Settings> | null>(SETTINGS_KEY, null);
   if (stored) {
+    // Kaldirilmis bir saglayici kayitliysa (Gemini/OpenRouter) varsayilana don;
+    // yoksa anahtar o saglayicinin altinda kalip yanlis adrese gonderilirdi.
+    const provider =
+      stored.provider && isKnownProvider(stored.provider)
+        ? stored.provider
+        : DEFAULT_PROVIDER;
     settingsSnapshot = {
-      provider: stored.provider ?? DEFAULT_PROVIDER,
-      model: stored.model ?? defaultModel(stored.provider ?? DEFAULT_PROVIDER),
+      provider,
+      model:
+        stored.provider === provider && stored.model
+          ? stored.model
+          : defaultModel(provider),
       explainLevel: stored.explainLevel ?? "A2-B1",
       keys: stored.keys ?? {},
-      customBaseUrl: stored.customBaseUrl ?? "",
     };
     return;
   }
 
-  // Tek saglayicili surumden goc: eski anahtar Google'a ait.
-  const legacyKey = window.localStorage.getItem(LEGACY_API_KEY) ?? "";
-  if (legacyKey) {
-    const legacyModel =
-      window.localStorage.getItem(LEGACY_MODEL_KEY) ?? defaultModel("google");
-    settingsSnapshot = {
-      provider: "google",
-      model: legacyModel,
-      explainLevel: "A2-B1",
-      keys: { google: legacyKey },
-      customBaseUrl: "",
-    };
-    write(SETTINGS_KEY, settingsSnapshot);
+  // Tek saglayicili surumden goc: v1 anahtari Gemini'ye aitti ve Gemini artik
+  // desteklenmiyor. Anahtari tasimanin anlami yok — eski kaydi silip
+  // varsayilanla basliyoruz ki kullanici dogrudan yeni anahtari girsin.
+  if (window.localStorage.getItem(LEGACY_API_KEY)) {
+    window.localStorage.removeItem(LEGACY_API_KEY);
+    window.localStorage.removeItem(LEGACY_MODEL_KEY);
   }
 }
 

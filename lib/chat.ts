@@ -1,7 +1,7 @@
 "use client";
 
 import { LANGUAGES, type LanguageCode } from "./dictionary";
-import type { Provider, ProviderKind } from "./providers";
+import type { Provider } from "./providers";
 
 export class ChatError extends Error {}
 
@@ -137,52 +137,7 @@ interface StreamOptions {
   onDelta: (chunk: string) => void;
 }
 
-/** Gemini'nin kendi bicimi. Sistem yonergesi ayri bir alanda gider. */
-function geminiRequest(
-  baseUrl: string,
-  model: string,
-  apiKey: string,
-  messages: ChatMessage[],
-  language: LanguageCode,
-  memory: string,
-  level: string,
-  maxTokens: number,
-): [string, RequestInit] {
-  // Gemini 2.5 modellerinde "dusunme" tokenlari da maxOutputTokens butcesinden
-  // yeniyor. Uzun bir gorevde model butun butceyi dusunmeye harcayip bos metin
-  // dondurebiliyor. Flash ailesinde dusunmeyi kapatabiliyoruz; Pro'da en az bir
-  // butce sart oldugu icin orada dokunmuyoruz, sadece butceyi buyuk tutuyoruz.
-  const canDisableThinking = /flash/i.test(model);
-
-  return [
-    `${baseUrl}/models/${model}:streamGenerateContent?alt=sse`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": apiKey,
-      },
-      body: JSON.stringify({
-        systemInstruction: {
-          parts: [{ text: systemPrompt(language, memory, level) }],
-        },
-        contents: messages.map((message) => ({
-          role: message.role,
-          parts: [{ text: message.text }],
-        })),
-        generationConfig: {
-          temperature: 0.6,
-          maxOutputTokens: maxTokens,
-          ...(canDisableThinking
-            ? { thinkingConfig: { thinkingBudget: 0 } }
-            : {}),
-        },
-      }),
-    },
-  ];
-}
-
-/** DeepSeek, OpenRouter, Ollama ve digerlerinin konustugu OpenAI bicimi. */
+/** Iki saglayici da OpenAI uyumlu /chat/completions konusuyor. */
 function openaiRequest(
   baseUrl: string,
   model: string,
@@ -192,18 +147,18 @@ function openaiRequest(
   memory: string,
   level: string,
   maxTokens: number,
+  provider: Provider,
 ): [string, RequestInit] {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Authorization: `Bearer ${apiKey}`,
   };
 
-  // OpenRouter cagriyi yapan siteyi bu basliklarla etiketliyor; zorunlu degil
-  // ama gonderilmesi bekleniyor.
-  if (baseUrl.includes("openrouter.ai") && typeof window !== "undefined") {
-    headers["HTTP-Referer"] = window.location.origin;
-    headers["X-Title"] = "Kelime Sozlugu";
-  }
+  // OpenAI'nin akil yurutme modelleri max_tokens'i reddedip
+  // max_completion_tokens bekliyor; DeepSeek eskisini kullaniyor.
+  const tokenField = provider.usesMaxCompletionTokens
+    ? "max_completion_tokens"
+    : "max_tokens";
 
   return [
     `${baseUrl}/chat/completions`,
@@ -214,7 +169,7 @@ function openaiRequest(
         model,
         stream: true,
         temperature: 0.6,
-        max_tokens: maxTokens,
+        [tokenField]: maxTokens,
         messages: [
           { role: "system", content: systemPrompt(language, memory, level) },
           ...messages.map((message) => ({
@@ -231,31 +186,16 @@ function openaiRequest(
 /** Akisin neden bittigini soyleyen alan; bos cevabi aciklamak icin. */
 function readFinishReason(payload: string): string {
   const parsed = JSON.parse(payload) as {
-    candidates?: { finishReason?: string }[];
     choices?: { finish_reason?: string }[];
   };
-  return (
-    parsed.candidates?.[0]?.finishReason ??
-    parsed.choices?.[0]?.finish_reason ??
-    ""
-  );
+  return parsed.choices?.[0]?.finish_reason ?? "";
 }
 
-/** Iki bicimin SSE govdesinden metin parcasini cikarir. */
-function readDelta(kind: ProviderKind, payload: string): string {
+/** SSE govdesinden metin parcasini cikarir. */
+function readDelta(payload: string): string {
   const parsed = JSON.parse(payload) as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[];
     choices?: { delta?: { content?: string }; message?: { content?: string } }[];
   };
-
-  if (kind === "gemini") {
-    return (
-      parsed.candidates?.[0]?.content?.parts
-        ?.map((part) => part.text ?? "")
-        .join("") ?? ""
-    );
-  }
-
   const choice = parsed.choices?.[0];
   return choice?.delta?.content ?? choice?.message?.content ?? "";
 }
@@ -281,14 +221,9 @@ export async function streamChat({
   if (!model) throw new ChatError("Model seçilmedi.");
 
   const trimmedBase = baseUrl.replace(/\/$/, "");
-  const [url, init] =
-    provider.kind === "gemini"
-      ? geminiRequest(
-          trimmedBase, model, apiKey, messages, language, memory, level, maxTokens,
-        )
-      : openaiRequest(
-          trimmedBase, model, apiKey, messages, language, memory, level, maxTokens,
-        );
+  const [url, init] = openaiRequest(
+    trimmedBase, model, apiKey, messages, language, memory, level, maxTokens, provider,
+  );
 
   let response: Response;
   try {
@@ -300,8 +235,8 @@ export async function streamChat({
     throw new ChatError(
       `${provider.label} sağlayıcısına ulaşılamadı. İki sebebi olabilir: ` +
         "internet bağlantın, ya da bu sağlayıcının tarayıcıdan doğrudan " +
-        "çağrılmasına izin vermemesi (CORS). İkincisiyse ayarlardan başka bir " +
-        "sağlayıcı seç — OpenRouter üzerinden aynı modellere erişebilirsin. " +
+        "çağrılmasına izin vermemesi (CORS). İkincisiyse ayarlardan diğer " +
+        "sağlayıcıyı dene. " +
         `(${error instanceof Error ? error.message : String(error)})`,
     );
   }
@@ -353,7 +288,7 @@ export async function streamChat({
 
       try {
         finishReason = readFinishReason(payload) || finishReason;
-        const text = readDelta(provider.kind, payload);
+        const text = readDelta(payload);
         if (text) {
           full += text;
           onDelta(text);
@@ -385,13 +320,13 @@ export async function streamChat({
   if (!full.trim()) {
     // En sik sebep: model butun cikti butcesini "dusunerek" harcadi ve geriye
     // metin kalmadi. Kullaniciya ne yapabilecegini soyluyoruz.
-    if (/MAX_TOKENS/i.test(finishReason)) {
+    if (/MAX_TOKENS|length/i.test(finishReason)) {
       throw new ChatError(
         "Model cevabı bitiremeden sınıra takıldı. Metni biraz kısaltıp tekrar " +
           "dene, ya da ayarlardan başka bir model seç.",
       );
     }
-    if (/SAFETY|BLOCK|RECITATION/i.test(finishReason)) {
+    if (/SAFETY|BLOCK|RECITATION|content_filter/i.test(finishReason)) {
       throw new ChatError(
         `Sağlayıcı bu isteği engelledi (${finishReason}). Metni biraz değiştirip dene.`,
       );

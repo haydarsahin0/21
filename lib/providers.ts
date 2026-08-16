@@ -1,13 +1,10 @@
 /**
  * Desteklenen model saglayicilari.
  *
- * Site statik oldugu icin istek dogrudan tarayicidan gidiyor. Bu yuzden bir
- * saglayicinin kullanilabilmesi teknik olarak tek sarta bagli: tarayici
- * cagrilarina CORS izni vermesi. Vermeyen bir saglayici arada bir sunucu
- * olmadan calisamaz — arayuz bu durumu ayirt edip soyluyor.
+ * Ikisi de OpenAI uyumlu /chat/completions konusuyor, dolayisiyla tek kod yolu
+ * yetiyor. Site statik oldugu icin istek dogrudan tarayicidan gidiyor; bir
+ * saglayicinin calismasi CORS izni vermesine bagli.
  */
-
-export type ProviderKind = "gemini" | "openai";
 
 export interface ProviderModel {
   id: string;
@@ -17,85 +14,63 @@ export interface ProviderModel {
 export interface Provider {
   id: string;
   label: string;
-  kind: ProviderKind;
   baseUrl: string;
+  /** Ayarlarda onerilen modeller; kullanici elle de yazabiliyor. */
   models: ProviderModel[];
+  defaultModel: string;
   keyUrl: string;
   keyPlaceholder: string;
   /** Ucret/kota durumu — ayarlar ekraninda gosteriliyor. */
   note: string;
-  /** Tarayicidan dogrudan cagrilabildigi dogrulandi mi? */
-  corsVerified: boolean;
-  /** Kullanici kendi adresini girer (custom saglayici). */
-  editableBaseUrl?: boolean;
+  /**
+   * OpenAI akil yurutme modelleri max_tokens yerine max_completion_tokens
+   * bekliyor; eskisini gonderince istegi reddediyorlar.
+   */
+  usesMaxCompletionTokens?: boolean;
 }
 
 export const PROVIDERS: Provider[] = [
   {
-    id: "google",
-    label: "Google Gemini",
-    kind: "gemini",
-    baseUrl: "https://generativelanguage.googleapis.com/v1beta",
-    models: [
-      { id: "gemini-2.5-flash-lite", label: "Flash-Lite — günde 1.000 mesaj" },
-      { id: "gemini-2.5-flash", label: "Flash — günde 250, daha isabetli" },
-      { id: "gemini-2.5-pro", label: "Pro — günde 100, en isabetli" },
-    ],
-    keyUrl: "https://aistudio.google.com/apikey",
-    keyPlaceholder: "AIza...",
-    note: "Ücretsiz, kredi kartı istemiyor. Günde 1.000 mesaja kadar.",
-    corsVerified: true,
-  },
-  {
     id: "deepseek",
     label: "DeepSeek",
-    kind: "openai",
     baseUrl: "https://api.deepseek.com",
     models: [
       { id: "deepseek-v4-flash", label: "V4 Flash — ucuz ve hızlı" },
       { id: "deepseek-v4-pro", label: "V4 Pro — daha güçlü akıl yürütme" },
     ],
+    defaultModel: "deepseek-v4-flash",
     keyUrl: "https://platform.deepseek.com/api_keys",
     keyPlaceholder: "sk-...",
-    note: "Yeni hesaplara 30 gün geçerli 5M token hediye; sonrası kullandıkça öde (çok ucuz).",
-    corsVerified: false,
+    note: "Kullandıkça öde, çok ucuz. Yeni hesaba 30 gün geçerli 5M token hediye.",
   },
   {
-    id: "openrouter",
-    label: "OpenRouter",
-    kind: "openai",
-    baseUrl: "https://openrouter.ai/api/v1",
+    id: "openai",
+    label: "OpenAI (ChatGPT)",
+    baseUrl: "https://api.openai.com/v1",
     models: [
-      { id: "deepseek/deepseek-chat-v3.1:free", label: "DeepSeek (ücretsiz)" },
-      { id: "deepseek/deepseek-v4-flash", label: "DeepSeek V4 Flash" },
-      { id: "google/gemini-2.5-flash-lite", label: "Gemini Flash-Lite" },
-      { id: "meta-llama/llama-3.3-70b-instruct:free", label: "Llama 3.3 70B (ücretsiz)" },
+      { id: "gpt-5.6", label: "GPT-5.6 — önerilen" },
+      { id: "gpt-5.6-terra", label: "GPT-5.6 Terra — dengeli, daha ucuz" },
+      { id: "gpt-5.6-luna", label: "GPT-5.6 Luna — en ucuz" },
+      { id: "gpt-5.6-sol", label: "GPT-5.6 Sol — en güçlü" },
     ],
-    keyUrl: "https://openrouter.ai/keys",
-    keyPlaceholder: "sk-or-...",
-    note: "Tek anahtarla onlarca model; :free modeller günde 50 mesaj (10 $ bakiye varsa 1.000).",
-    corsVerified: false,
-  },
-  {
-    id: "custom",
-    label: "Başka (OpenAI uyumlu)",
-    kind: "openai",
-    baseUrl: "",
-    models: [],
-    keyUrl: "",
-    keyPlaceholder: "sk-...",
-    note: "OpenAI uyumlu herhangi bir adres. Ollama gibi yerel sunucular da olur.",
-    corsVerified: false,
-    editableBaseUrl: true,
+    defaultModel: "gpt-5.6-terra",
+    keyUrl: "https://platform.openai.com/api-keys",
+    keyPlaceholder: "sk-proj-...",
+    note: "Kullandıkça öde. Hesabına önceden bakiye yüklemen gerekiyor.",
+    usesMaxCompletionTokens: true,
   },
 ];
 
-export const DEFAULT_PROVIDER = "google";
+export const DEFAULT_PROVIDER = "deepseek";
+
+export function isKnownProvider(id: string): boolean {
+  return PROVIDERS.some((provider) => provider.id === id);
+}
 
 export function getProvider(id: string): Provider {
   return PROVIDERS.find((provider) => provider.id === id) ?? PROVIDERS[0];
 }
 
 export function defaultModel(providerId: string): string {
-  return getProvider(providerId).models[0]?.id ?? "";
+  return getProvider(providerId).defaultModel;
 }

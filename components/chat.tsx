@@ -115,9 +115,7 @@ export function Chat({
       abortRef.current = controller;
 
       const provider = getProvider(settings.provider);
-      const baseUrl = provider.editableBaseUrl
-        ? settings.customBaseUrl
-        : provider.baseUrl;
+      const baseUrl = provider.baseUrl;
       const apiKey = storage.currentKey(settings);
 
       try {

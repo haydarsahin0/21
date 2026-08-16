@@ -53,9 +53,7 @@ export function WritingPanel({
       language,
       level: settings.explainLevel,
       provider,
-      baseUrl: provider.editableBaseUrl
-        ? settings.customBaseUrl
-        : provider.baseUrl,
+      baseUrl: provider.baseUrl,
       apiKey: storage.currentKey(settings),
       model: settings.model,
       signal: controller.signal,

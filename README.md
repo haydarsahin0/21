@@ -41,25 +41,38 @@ bilgisayardaysan Ayarlar'dan alanı boşaltıp kaydederek silebilirsin.
 
 ## Sağlayıcılar
 
-| Sağlayıcı | Ücret | Tarayıcıdan çağrılabiliyor mu? |
+İki sağlayıcı var, ikisi de OpenAI uyumlu `/chat/completions` konuşuyor:
+
+| Sağlayıcı | Varsayılan model | Ücret |
 |---|---|---|
-| **Google Gemini** (varsayılan) | Ücretsiz, kart istemiyor, günde 1.000 mesaj | ✅ Ölçtük: CORS izni veriyor |
-| **DeepSeek** | Yeni hesaba 30 gün geçerli 5M token, sonrası kullandıkça öde | ⚠️ Doğrulanmadı |
-| **OpenRouter** | `:free` modeller günde 50 mesaj (10 $ bakiye → 1.000) | ⚠️ Doğrulanmadı (belgeleri destekliyor der) |
-| **Başka (OpenAI uyumlu)** | Kendi adresin — Ollama gibi yerel sunucular dahil | Adrese bağlı |
+| **DeepSeek** (varsayılan) | `deepseek-v4-flash` | Yeni hesaba 30 gün geçerli 5M token, sonrası kullandıkça öde — çok ucuz |
+| **OpenAI (ChatGPT)** | `gpt-5.6-terra` | Kullandıkça öde; hesaba önceden bakiye yüklemek gerekiyor |
 
-Site statik olduğu için istek doğrudan tarayıcıdan gidiyor; bu yüzden bir
-sağlayıcının çalışması **CORS izni vermesine** bağlı. Gemini'nin izin verdiğini
-ölçtük (`access-control-allow-origin` başlığını döndürüyor). DeepSeek'i ve
-OpenRouter'ı bu ortamdan test edemedik, o yüzden ayarlarda uyarı çıkıyor.
+Anahtarlar sağlayıcı başına ayrı tutuluyor, yani aralarında geçiş yaparken
+tekrar girmen gerekmiyor.
 
-Denediğinde “ulaşılamadı (CORS)” hatası alırsan o sağlayıcı tarayıcı
-çağrılarına kapalı demektir. Çözüm: **OpenRouter'a geç** — aynı DeepSeek
-modellerine oradan erişebilirsin (`deepseek/deepseek-v4-flash`).
+**Model alanı elle yazılabilir.** Kutuya dokununca öneriler çıkıyor ama
+sağlayıcı yeni bir model çıkardığında uygulamanın güncellenmesini beklemeden
+adını doğrudan yazabilirsin.
+
+OpenAI'nin akıl yürütme modelleri `max_tokens` yerine `max_completion_tokens`
+bekliyor; istek gövdesi sağlayıcıya göre bu alanı değiştiriyor
+(`providers.ts` → `usesMaxCompletionTokens`).
 
 DeepSeek model kimlikleri 24 Temmuz 2026'da değişti: `deepseek-chat` ve
 `deepseek-reasoner` emekli oldu, yerlerine `deepseek-v4-flash` ve
 `deepseek-v4-pro` geldi. Uygulama yenilerini kullanıyor.
+
+### CORS uyarısı
+
+Site statik olduğu için istek doğrudan tarayıcıdan gidiyor; bu yüzden bir
+sağlayıcının çalışması **CORS izni vermesine** bağlı. DeepSeek'in tarayıcıdan
+çalıştığı kullanımda doğrulandı. OpenAI'yi geliştirme ortamından ölçemedik
+(ağ katmanı `api.openai.com`'a çıkışı engelliyor), yani tarayıcıdan doğrudan
+çağrılabildiği **doğrulanmadı**.
+
+Denediğinde “ulaşılamadı (CORS)” hatası alırsan o sağlayıcı tarayıcı
+çağrılarına kapalı demektir; ayarlardan diğerine geç.
 
 ## Ne veriyor
 
@@ -135,9 +148,13 @@ turda bir çalışır ve arka planda kalır — sohbeti bekletmez.
 
 ## Kota
 
-Sınır **mesaj başına** işler; sohbetin her adımı bir mesaj sayılır. Gemini'de
-Flash-Lite günde 1.000, Flash 250, Pro 100 mesaj. Ayarlar'dan model
-değiştirebilirsin.
+Her iki sağlayıcı da kullandıkça öde çalışıyor: sabit bir günlük mesaj sınırı
+yok, harcama token başına. Ucuz kalmak istiyorsan `deepseek-v4-flash` ile
+devam et; Ayarlar'dan istediğin an model değiştirebilirsin.
+
+Cevap uzunluğu sınırlı tutuluyor — sohbette 1600, yazma değerlendirmesinde
+4096 token. Model cevabı bitiremeden sınıra takılırsa uygulama bunu ayrıca
+söylüyor, sessizce boş cevap göstermiyor.
 
 Cevaplar akış halinde geldiği için uzun bir cevabı beklemek zorunda değilsin;
 istediğin an **Durdur**'a basabilirsin, o ana kadar gelen metin sohbette kalır.
@@ -186,7 +203,7 @@ lib/
   typewriter.ts         akan metnin zamana bağlı ortaya çıkışı
   dictionary.ts         diller
   providers.ts          sağlayıcı tanımları (adres, modeller, protokol)
-  chat.ts               sohbet promptu + SSE akışı (Gemini ve OpenAI biçimi)
+  chat.ts               sohbet promptu + SSE akışı (OpenAI biçimi)
   memory.ts             Dexie/IndexedDB: notlar, kelime sayaçları, geçmiş
   profile.ts            konuşmadan profil çıkarımı
   storage.ts            localStorage: anahtarlar, dil, kelime defteri

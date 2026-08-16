@@ -61,7 +61,12 @@ export function Dictionary() {
   const hasKey = Boolean(storage.currentKey(settings));
   if (!hasKey || showSettings) {
     return (
+      // Form alanlari useState ile kuruluyor; ilk render hidrasyon oncesi
+      // varsayilanlarla geldigi icin kayitli ayarlar (ornegin seviye) forma
+      // yansimiyordu. Anahtar degisince bilesen bastan kuruluyor ve alanlar
+      // localStorage'daki gercek degerlerle doluyor.
       <SettingsPanel
+        key={`${settings.provider}:${settings.model}:${settings.explainLevel}`}
         settings={settings}
         firstRun={!hasKey}
         onDone={() => setShowSettings(false)}
