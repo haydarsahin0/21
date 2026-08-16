@@ -292,6 +292,24 @@ export async function streamChat({
   let buffer = "";
   let full = "";
 
+  const consume = (event: string) => {
+    for (const line of event.split("\n")) {
+      if (!line.startsWith("data:")) continue;
+      const payload = line.slice(5).trim();
+      if (!payload || payload === "[DONE]") continue;
+
+      try {
+        const text = readDelta(provider.kind, payload);
+        if (text) {
+          full += text;
+          onDelta(text);
+        }
+      } catch {
+        // Bolunmus bir JSON parcasi olabilir; bir sonraki turda tamamlanir.
+      }
+    }
+  };
+
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
@@ -301,25 +319,14 @@ export async function streamChat({
     // SSE olaylari bos satirla ayrilir; yarim kalan son parcayi tamponda tut.
     const events = buffer.split("\n\n");
     buffer = events.pop() ?? "";
-
-    for (const event of events) {
-      for (const line of event.split("\n")) {
-        if (!line.startsWith("data:")) continue;
-        const payload = line.slice(5).trim();
-        if (!payload || payload === "[DONE]") continue;
-
-        try {
-          const text = readDelta(provider.kind, payload);
-          if (text) {
-            full += text;
-            onDelta(text);
-          }
-        } catch {
-          // Bolunmus bir JSON parcasi olabilir; bir sonraki turda tamamlanir.
-        }
-      }
-    }
+    for (const event of events) consume(event);
   }
+
+  // Akis kapandiginda tamponda kalani da isle. Son olay her zaman bos satirla
+  // bitmiyor; islenmeyince cevabin son parcasi dusuyor ve metin cumlenin
+  // ortasinda kesiliyordu.
+  buffer += decoder.decode();
+  if (buffer.trim()) consume(buffer);
 
   if (!full.trim()) {
     throw new ChatError("Modelden boş cevap geldi. Tekrar dener misin?");
