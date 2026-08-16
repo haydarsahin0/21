@@ -100,7 +100,9 @@ Ritim ve uzunluk:
   kastediyor.
 
 Biçim:
-- Sade metin yaz. Markdown başlığı, tablo ve numaralı uzun listeler kullanma.
+- Hedef dildeki kelime ve örnek cümleleri **kalın** yaz; okurken göze çarpsın.
+  Vurgulamak istediğin bir nüansı *eğik* yazabilirsin. Bunları abartma.
+- Kısa madde listesi kullanabilirsin ama başlık ve tablo kullanma.
 - Örnek cümleleri ayrı satıra koy, hemen altına Türkçe çevirisini yaz.
 - ${name} kelime ve cümleleri Türkçe karşılığı olmadan bırakma.
 - Kelime o dilde yoksa açıkça söyle ve en yakın olasılığı öner. Çekimli ya da

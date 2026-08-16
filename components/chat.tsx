@@ -7,7 +7,10 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { BookmarkCheck, BookmarkPlus, RotateCcw, Square } from "lucide-react";
+
+import { Markdown } from "@/components/markdown";
 
 import { ColorOrb, MorphPanel } from "@/components/ui/ai-input";
 import { Button } from "@/components/ui/button";
@@ -29,9 +32,18 @@ import {
 } from "@/lib/memory";
 import { EXTRACT_EVERY, extractProfile } from "@/lib/profile";
 import { getProvider } from "@/lib/providers";
+import { Typewriter } from "@/lib/typewriter";
 import * as storage from "@/lib/storage";
 
 const ORB_TONES = { base: "oklch(19% 0.025 252)" };
+
+// Balonlar yerine otururken hafif bir yay: ani "pop" degil, akan bir his.
+const BUBBLE_SPRING = {
+  type: "spring",
+  stiffness: 420,
+  damping: 34,
+  mass: 0.6,
+} as const;
 
 function greeting(language: LanguageCode): string {
   const name = LANGUAGES[language].name;
@@ -62,6 +74,7 @@ export function Chat({
   );
 
   const abortRef = useRef<AbortController | null>(null);
+  const typewriterRef = useRef<Typewriter | null>(null);
   // Kacinci asistan cevabindayiz — profil cikarimini seyreltmek icin.
   const turnRef = useRef(0);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -118,6 +131,9 @@ export function Chat({
 
         const memory = await buildMemoryBlock(language, activeWord);
 
+        const typewriter = new Typewriter(setStreaming);
+        typewriterRef.current = typewriter;
+
         const full = await streamChat({
           messages: next,
           language,
@@ -127,9 +143,16 @@ export function Chat({
           model: settings.model,
           memory,
           signal: controller.signal,
-          onDelta: (chunk) => setStreaming((prev) => prev + chunk),
+          onDelta: (chunk) => typewriter.push(chunk),
         });
         if (controller.signal.aborted) return;
+
+        // Akis bitti ama ekrandaki metin geride olabilir; yetismesini bekle ki
+        // kalan kisim bir anda patlamasin.
+        await typewriter.finish();
+        if (controller.signal.aborted) return;
+
+        typewriterRef.current = null;
         setMessages([...next, { role: "model", text: full }]);
 
         void rememberMessage({
@@ -167,7 +190,8 @@ export function Chat({
   );
 
   const stop = () => {
-    const partial = streaming;
+    const partial = typewriterRef.current?.cancel() ?? streaming;
+    typewriterRef.current = null;
     abortRef.current?.abort();
     abortRef.current = null;
     // Yarida kesilen metni atmak yerine sakla: kullanici zaten okuyordu.
@@ -179,6 +203,8 @@ export function Chat({
   };
 
   const reset = () => {
+    typewriterRef.current?.cancel();
+    typewriterRef.current = null;
     abortRef.current?.abort();
     abortRef.current = null;
     setMessages([]);
@@ -218,35 +244,62 @@ export function Chat({
 
         {messages.map((message, index) =>
           message.role === "user" ? (
-            <div key={index} className="flex justify-end">
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={BUBBLE_SPRING}
+              className="flex justify-end"
+            >
               <p className="bg-primary/15 text-foreground max-w-[85%] rounded-2xl rounded-br-md px-4 py-2.5 whitespace-pre-wrap">
                 {message.text}
               </p>
-            </div>
+            </motion.div>
           ) : (
-            <div key={index} className="flex gap-3">
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={BUBBLE_SPRING}
+              className="flex gap-3"
+            >
               <div className="mt-1 shrink-0">
                 <ColorOrb dimension="24px" tones={ORB_TONES} />
               </div>
-              <p className="bg-card/70 max-w-[85%] rounded-2xl rounded-tl-md border px-4 py-2.5 leading-relaxed whitespace-pre-wrap backdrop-blur-xl">
-                {message.text}
-              </p>
-            </div>
+              <div className="bg-card/70 max-w-[85%] rounded-2xl rounded-tl-md border px-4 py-2.5 leading-relaxed backdrop-blur-xl">
+                <Markdown>{message.text}</Markdown>
+              </div>
+            </motion.div>
           ),
         )}
 
-        {busy ? (
-          <div className="flex gap-3">
-            <div className="mt-1 shrink-0">
-              <ColorOrb dimension="24px" tones={ORB_TONES} spinDuration={3} />
-            </div>
-            <p className="bg-card/70 max-w-[85%] rounded-2xl rounded-tl-md border px-4 py-2.5 leading-relaxed whitespace-pre-wrap backdrop-blur-xl">
-              {streaming || (
-                <span className="text-muted-foreground">düşünüyor…</span>
-              )}
-            </p>
-          </div>
-        ) : null}
+        <AnimatePresence>
+          {busy ? (
+            <motion.div
+              key="streaming"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={BUBBLE_SPRING}
+              className="flex gap-3"
+            >
+              <div className="mt-1 shrink-0">
+                <ColorOrb dimension="24px" tones={ORB_TONES} spinDuration={3} />
+              </div>
+              <div className="bg-card/70 max-w-[85%] rounded-2xl rounded-tl-md border px-4 py-2.5 leading-relaxed backdrop-blur-xl">
+                {streaming ? (
+                  <div className="chat-stream">
+                    <Markdown>{streaming}</Markdown>
+                  </div>
+                ) : (
+                  <span className="thinking-dots text-muted-foreground">
+                    düşünüyor
+                  </span>
+                )}
+              </div>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
 
         {error ? (
           <p className="border-destructive/60 text-destructive rounded-xl border px-4 py-3 text-sm">
@@ -259,15 +312,18 @@ export function Chat({
 
       {started && !busy ? (
         <div className="flex flex-wrap gap-2 pt-2">
-          {STEP_SUGGESTIONS.map((suggestion) => (
-            <button
+          {STEP_SUGGESTIONS.map((suggestion, index) => (
+            <motion.button
               key={suggestion.label}
               type="button"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.04, duration: 0.25 }}
               onClick={() => void send(suggestion.prompt)}
               className="bg-background/40 hover:border-primary hover:text-primary cursor-pointer rounded-full border px-3 py-1.5 text-sm backdrop-blur-sm"
             >
               {suggestion.label}
-            </button>
+            </motion.button>
           ))}
         </div>
       ) : null}

@@ -15,7 +15,11 @@ devam eder. Buradan istediğin yere gidebilirsin:
 
 Serbest soru sorman beklenen kullanım; hazır bir menüye sıkışmıyorsun. Model
 konuştuğunuz kelimeyi hatırlıyor, cümlelerini düzeltiyor ve her açıklamasını
-örnekle gösteriyor. Cevaplar yazılırken akarak geliyor.
+örnekle gösteriyor.
+
+Cevaplar yazılırken ölçülü bir tempoda akıyor: hedef dildeki kelimeler kalın,
+nüanslar eğik, örnekler ayrı satırda. Akış hızı kare sayısına değil geçen
+zamana bağlı, yani yavaş bir telefonda metin sürünmüyor.
 
 Konuştukça seni tanıyor: seviyeni, ilgi alanlarını, takıldığın noktaları not
 alıyor ve sonraki sohbetlerde bunlara göre konuşuyor. Notların tamamı senin
@@ -138,12 +142,14 @@ app/
   ai-input/page.tsx     yalnız MorphPanel (Ask AI) bileşeni
 components/
   dictionary.tsx        sekmeler, dil seçimi, kelime defteri
+  markdown.tsx          model çıktısının markdown olarak çizimi
   chat.tsx              sohbet akışı, adım düğmeleri, durdurma
   memory-panel.tsx      sistemin senin hakkında bildikleri
   settings-panel.tsx    anahtar girişi ve model seçimi
   nebula-background.tsx cihaza göre parçacık sayısı seçer, SSR dışı yükler
   ui/                   shadcn bileşenleri + quantum-nebula.tsx + ai-input.tsx
 lib/
+  typewriter.ts         akan metnin zamana bağlı ortaya çıkışı
   dictionary.ts         diller
   providers.ts          sağlayıcı tanımları (adres, modeller, protokol)
   chat.ts               sohbet promptu + SSE akışı (Gemini ve OpenAI biçimi)

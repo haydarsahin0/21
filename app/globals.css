@@ -96,6 +96,58 @@
   initial-value: 0deg;
 }
 
+/* Akan cevabin sonundaki imlec: metnin canli yazildigini gosteriyor.
+   Son metin dugumunden sonra ::after ile ekleniyor, boylece markdown
+   agacina dokunmadan hep en sonda kaliyor. */
+.chat-stream > :last-child::after {
+  content: "";
+  display: inline-block;
+  width: 0.5em;
+  height: 1.05em;
+  margin-left: 0.12em;
+  vertical-align: text-bottom;
+  border-radius: 1px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--primary) 85%, transparent),
+    var(--primary)
+  );
+  animation: caret-pulse 1.05s ease-in-out infinite;
+}
+
+@keyframes caret-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.15;
+  }
+}
+
+/* "düşünüyor" yazisinin sonundaki akan uc nokta. */
+.thinking-dots::after {
+  content: "…";
+  display: inline-block;
+  width: 1.2em;
+  text-align: left;
+  animation: thinking-dots 1.4s steps(4, end) infinite;
+  clip-path: inset(0 100% 0 0);
+}
+
+@keyframes thinking-dots {
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-stream > :last-child::after,
+  .thinking-dots::after {
+    animation: none;
+  }
+}
+
 /* Parcacik tuvali sayfanin arkasinda sabit durur; icerik uzerinde kayar. */
 .nebula-scrim {
   background: radial-gradient(
