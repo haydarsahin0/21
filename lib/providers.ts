@@ -27,6 +27,12 @@ export interface Provider {
    * bekliyor; eskisini gonderince istegi reddediyorlar.
    */
   usesMaxCompletionTokens?: boolean;
+  /**
+   * Ayni modeller temperature'i da kabul etmiyor: varsayilan disinda bir deger
+   * gonderince "Unsupported value: 'temperature'" diye 400 donuyorlar. Bu
+   * saglayicida alani hic gondermiyoruz.
+   */
+  omitTemperature?: boolean;
 }
 
 export const PROVIDERS: Provider[] = [
@@ -58,6 +64,7 @@ export const PROVIDERS: Provider[] = [
     keyPlaceholder: "sk-proj-...",
     note: "Kullandıkça öde. Hesabına önceden bakiye yüklemen gerekiyor.",
     usesMaxCompletionTokens: true,
+    omitTemperature: true,
   },
 ];
 

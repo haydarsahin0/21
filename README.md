@@ -55,9 +55,17 @@ tekrar girmen gerekmiyor.
 sağlayıcı yeni bir model çıkardığında uygulamanın güncellenmesini beklemeden
 adını doğrudan yazabilirsin.
 
-OpenAI'nin akıl yürütme modelleri `max_tokens` yerine `max_completion_tokens`
-bekliyor; istek gövdesi sağlayıcıya göre bu alanı değiştiriyor
-(`providers.ts` → `usesMaxCompletionTokens`).
+OpenAI'nin akıl yürütme modelleri iki noktada farklı davranıyor, istek gövdesi
+sağlayıcıya göre buna uyum sağlıyor (`providers.ts`):
+
+- `max_tokens` yerine `max_completion_tokens` bekliyorlar
+  (`usesMaxCompletionTokens`).
+- `temperature`'ın varsayılan dışında bir değerini kabul etmiyorlar, alanı hiç
+  göndermiyoruz (`omitTemperature`).
+
+Model adı elle yazılabildiği için listede olmayan bir model de seçilebiliyor.
+Sağlayıcı `temperature` yüzünden 400 dönerse istek, alan çıkarılıp sessizce bir
+kez daha gönderiliyor — kullanıcı hata görmüyor.
 
 DeepSeek model kimlikleri 24 Temmuz 2026'da değişti: `deepseek-chat` ve
 `deepseek-reasoner` emekli oldu, yerlerine `deepseek-v4-flash` ve
@@ -66,10 +74,8 @@ DeepSeek model kimlikleri 24 Temmuz 2026'da değişti: `deepseek-chat` ve
 ### CORS uyarısı
 
 Site statik olduğu için istek doğrudan tarayıcıdan gidiyor; bu yüzden bir
-sağlayıcının çalışması **CORS izni vermesine** bağlı. DeepSeek'in tarayıcıdan
-çalıştığı kullanımda doğrulandı. OpenAI'yi geliştirme ortamından ölçemedik
-(ağ katmanı `api.openai.com`'a çıkışı engelliyor), yani tarayıcıdan doğrudan
-çağrılabildiği **doğrulanmadı**.
+sağlayıcının çalışması **CORS izni vermesine** bağlı. İkisinin de tarayıcıdan
+doğrudan çağrılabildiği kullanımda doğrulandı.
 
 Denediğinde “ulaşılamadı (CORS)” hatası alırsan o sağlayıcı tarayıcı
 çağrılarına kapalı demektir; ayarlardan diğerine geç.

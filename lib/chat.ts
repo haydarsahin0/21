@@ -148,6 +148,7 @@ function openaiRequest(
   level: string,
   maxTokens: number,
   provider: Provider,
+  withTemperature: boolean,
 ): [string, RequestInit] {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -168,7 +169,9 @@ function openaiRequest(
       body: JSON.stringify({
         model,
         stream: true,
-        temperature: 0.6,
+        // Bazi modeller yalniz varsayilan sicakligi kabul ediyor; oralarda
+        // alani hic gondermiyoruz, yoksa istegi 400 ile reddediyorlar.
+        ...(withTemperature ? { temperature: 0.6 } : {}),
         [tokenField]: maxTokens,
         messages: [
           { role: "system", content: systemPrompt(language, memory, level) },
@@ -221,28 +224,43 @@ export async function streamChat({
   if (!model) throw new ChatError("Model seçilmedi.");
 
   const trimmedBase = baseUrl.replace(/\/$/, "");
-  const [url, init] = openaiRequest(
-    trimmedBase, model, apiKey, messages, language, memory, level, maxTokens, provider,
-  );
 
-  let response: Response;
-  try {
-    response = await fetch(url, { ...init, signal });
-  } catch (error) {
-    if (signal?.aborted) return "";
-    // Tarayici CORS reddini de ag hatasini da ayni TypeError ile bildiriyor;
-    // ikisini ayirt edemedigimiz icin her iki olasiligi da soyluyoruz.
-    throw new ChatError(
-      `${provider.label} sağlayıcısına ulaşılamadı. İki sebebi olabilir: ` +
-        "internet bağlantın, ya da bu sağlayıcının tarayıcıdan doğrudan " +
-        "çağrılmasına izin vermemesi (CORS). İkincisiyse ayarlardan diğer " +
-        "sağlayıcıyı dene. " +
-        `(${error instanceof Error ? error.message : String(error)})`,
+  // null = istek iptal edildi.
+  const attempt = async (withTemperature: boolean): Promise<Response | null> => {
+    const [url, init] = openaiRequest(
+      trimmedBase, model, apiKey, messages, language, memory, level, maxTokens,
+      provider, withTemperature,
     );
+    try {
+      return await fetch(url, { ...init, signal });
+    } catch (error) {
+      if (signal?.aborted) return null;
+      // Tarayici CORS reddini de ag hatasini da ayni TypeError ile bildiriyor;
+      // ikisini ayirt edemedigimiz icin her iki olasiligi da soyluyoruz.
+      throw new ChatError(
+        `${provider.label} sağlayıcısına ulaşılamadı. İki sebebi olabilir: ` +
+          "internet bağlantın, ya da bu sağlayıcının tarayıcıdan doğrudan " +
+          "çağrılmasına izin vermemesi (CORS). İkincisiyse ayarlardan diğer " +
+          "sağlayıcıyı dene. " +
+          `(${error instanceof Error ? error.message : String(error)})`,
+      );
+    }
+  };
+
+  let response = await attempt(!provider.omitTemperature);
+  if (!response) return "";
+  let detail = response.ok ? "" : await response.text().catch(() => "");
+
+  // Model adi elle yazilabildigi icin sicakligi reddeden bir modele de denk
+  // gelebiliyoruz. Saglayici bunu 400 ile soyluyorsa alani cikarip sessizce
+  // bir kez daha deniyoruz; kullanici hata gormesin.
+  if (!response.ok && response.status === 400 && /temperature/i.test(detail)) {
+    response = await attempt(false);
+    if (!response) return "";
+    detail = response.ok ? "" : await response.text().catch(() => "");
   }
 
   if (!response.ok) {
-    const detail = await response.text().catch(() => "");
     if (response.status === 401 || response.status === 403) {
       throw new ChatError(
         `Anahtar reddedildi (${response.status}). ${provider.label} anahtarını ` +
