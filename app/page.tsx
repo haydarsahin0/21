@@ -12,8 +12,8 @@ export default function Home() {
             Kelime Sözlüğü
           </h1>
           <p className="text-muted-foreground mt-3 text-balance">
-            Bir kelime yaz, sohbet ederek adım adım aç: önce anlamı, sonra sen
-            istedikçe tanımı, eş anlamlıları, örnekleri.
+            Bir kelime yaz, öğretmenle konuşur gibi aç: anlamı, bağlamı, örnek
+            cümleler. Sonra ne merak ediyorsan sor.
           </p>
         </header>
 

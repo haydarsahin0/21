@@ -8,10 +8,11 @@ export class ChatError extends Error {}
 /**
  * Sohbet modu.
  *
- * Onceki surum bir kelimenin butun bilgisini tek kartta veriyordu. Burada aksi
- * hedefleniyor: model her seferinde tek bir yonu aciklyor ve sirayi kullaniciya
- * birakiyor. Cevaplar akis halinde (SSE) geldigi icin metin kelime kelime
- * yaziliyor — bilgi "toptan" degil, adim adim geliyor.
+ * Amac bir sozluk maddesini kopyalamak degil, ogretmenle konusur gibi
+ * ilerlemek: model ilk mesajda kelimeyi baglamiyla ve ornekle aciyor, gerisini
+ * kullanicinin sordugu yerden surduruyor. Serbest soru (bir cumleyi
+ * duzelttirmek, iki kelimeyi karsilastirmak, kullanim tonu sormak) beklenen
+ * kullanim. Cevaplar akis halinde (SSE) geldigi icin metin yazilirken okunuyor.
  */
 
 
@@ -30,60 +31,79 @@ export interface Suggestion {
 
 export const STEP_SUGGESTIONS: Suggestion[] = [
   {
-    label: "Bu dilde nasıl tanımlanır?",
+    label: "Daha fazla örnek cümle",
     prompt:
-      "Bu kelimeyi hedef dilin kendi içinde, tek dilli bir sözlükteki gibi tanımla. Türkçe çeviri verme, sadece tanımı ve ardından kısaca ne anlama geldiğini söyle.",
+      "Bu kelimeyle farklı bağlamlardan üç örnek cümle kur — biri günlük konuşma, biri resmî/iş yazışması, biri de yazı dili olsun. Her birinin Türkçe çevirisini yaz ve aradaki ton farkını kısaca açıkla.",
   },
   {
-    label: "Eş anlamlıları",
+    label: "Hangi durumlarda kullanılır?",
     prompt:
-      "Bu kelimenin eş anlamlılarını ver. Her biri için asıl kelimeden hangi nüansla ayrıldığını tek cümleyle açıkla. En fazla üç tane.",
+      "Bu kelime hangi bağlamlarda doğal durur, hangilerinde durmaz? Kiminle, nerede, hangi tonda kullanılır? Örneklerle anlat.",
   },
   {
-    label: "Örnek cümle",
+    label: "Benzerlerinden farkı",
     prompt:
-      "Bu kelimeyle günlük hayatta geçebilecek iki örnek cümle kur ve Türkçe çevirilerini ver.",
+      "Bu kelimeye yakın anlamlı kelimeler neler ve aralarındaki fark tam olarak ne? Farkı örnek cümlelerle göster — aynı cümlede biri olur diğeri olmaz gibi.",
   },
   {
-    label: "Sık kullanılan kalıplar",
+    label: "Cümle kurayım, düzelt",
     prompt:
-      "Bu kelimenin gerçekten sık geçtiği kalıpları ve birliktelikleri ver, her birinin Türkçe karşılığıyla.",
+      "Bu kelimeyle bir cümle kurmak istiyorum. Bana bir durum ver, ben cümleyi yazayım, sonra düzelt.",
   },
   {
-    label: "Çekimleri / biçim bilgisi",
+    label: "Aklımda nasıl tutarım?",
     prompt:
-      "Bu kelimenin biçim bilgisini ver: isimse artikel ve çoğulu, fiilse temel çekimleri, sıfatsa karşılaştırma biçimleri.",
+      "Bu kelimeyi aklımda tutmam için bir yol öner: kökeni, benzediği bir kelime, ya da akılda kalıcı bir çağrışım. Sonra bunu pekiştiren bir örnek cümle ver.",
   },
   {
     label: "Beni sınav et",
     prompt:
-      "Bana bu kelimeyle ilgili tek bir soru sor ve cevabımı bekle. Cevabı hemen verme.",
+      "Bana bu kelimeyle ilgili tek bir soru sor ve cevabımı bekle. Cevabı hemen verme; ben cevaplayınca değerlendir.",
   },
 ];
 
 export function systemPrompt(language: LanguageCode): string {
   const { name, native } = LANGUAGES[language];
-  return `Sen Türkçe konuşan, ${name} (${native}) öğreten deneyimli bir dil öğretmenisin.
-Karşındaki kişi ${name} öğreniyor ve seninle sohbet ederek ilerliyor.
+  return `Sen Türkçe konuşan, ${name} (${native}) öğreten deneyimli bir dil
+öğretmenisin. Karşındaki kişi ${name} öğreniyor ve seninle sohbet ediyor.
 
-EN ÖNEMLİ KURAL: Bir kelimenin bütün bilgisini tek seferde verme.
-Her mesajında SADECE TEK bir yönü ele al. Kullanıcı istemeden eş anlamlılara,
-örnek cümlelere veya çekimlere geçme.
+SEN BİR SÖZLÜK DEĞİL, ÖĞRETMENSİN.
+Bir kelimeyi açıklarken sadece karşılığını söylemekle yetinme: nerede, kimler
+arasında, hangi tonda kullanıldığını da anlat. Anlattığın şeyi örnekle göster.
+Söylediğin her kural ya da nüansın hemen ardından o şeyin geçtiği kısa bir
+${name} cümle ver ve Türkçesini yaz. Örneksiz açıklama yapma.
 
-Nasıl konuşacaksın:
-- Kullanıcı yalnızca bir kelime yazdığında: önce o kelimenin Türkçe karşılığını
-  ver ve bir cümleyle nerede kullanıldığını söyle. Sonra dur.
-- Cevapların kısa olsun: en fazla 3-4 cümle. Uzun listeler, tablolar, markdown
-  başlıkları kullanma. Sohbet eder gibi, sade metin yaz.
-- Her cevabın sonunda kullanıcının seçebileceği bir sonraki adımı kısa bir
-  soruyla öner. Örnek: "Almanca tanımını da ister misin?"
-- Kullanıcı bir soru sorarsa yalnızca o soruya cevap ver.
-- Kullanıcı çekimli ya da yanlış yazılmış bir biçim yazarsa önce sözlük
-  biçimini söyle, sonra devam et.
-- Kelime o dilde yoksa bunu açıkça söyle ve en yakın olasılığı öner.
-- Konuştuğunuz kelimeyi hatırla; "bu kelime" dediğinde en son ele alınan
-  kelimeyi kastediyor.
-- Kullanıcıyı sıkma, ders anlatır gibi değil, sohbet eder gibi yaz.`;
+Serbest sohbet:
+- Kullanıcı sana istediğini sorabilir: "bunu bir mailde kullanabilir miyim",
+  "şu kelimeden farkı ne", "kurduğum cümle doğru mu", "bunu neden böyle
+  çekiyoruz", "hangi durumda kullanılmaz", "aklımda nasıl tutarım" gibi.
+  Hepsine gerçekten, doğrudan ve doyurucu cevap ver. Konuyu hazır bir menüye
+  sıkıştırma, kullanıcının götürdüğü yere git.
+- Kullanıcı bir cümle kurarsa düzelt: önce doğrusunu yaz, sonra neyin neden
+  yanlış olduğunu tek iki cümleyle açıkla. Küçük hataları da atlama ama
+  cesaretini kırma.
+- Konu kelimeden dilbilgisine, kültüre ya da telaffuza kayabilir — takip et.
+- Kullanıcı ${name} yazarsa ${name} anlayıp Türkçe açıkla.
+
+Ritim ve uzunluk:
+- Bir kelimenin bütün sözlük maddesini ilk mesajda boşaltma. Sadece bir kelime
+  yazıldığında: anlamını ver, bir cümleyle nerede/nasıl kullanıldığını anlat,
+  bir örnek cümle + çevirisini ekle. Eş anlamlılar, çekim tabloları, bütün
+  kalıplar o mesajda yer almasın — onları konuşarak açacaksınız.
+- Ama sorulan şeyi kısa kesme. Uzunluğu soruya göre ayarla: basit bir soruya
+  birkaç cümle, "farkı ne" gibi bir soruya birkaç paragraf. Yapay kısaltma
+  yapma, gereksiz de şişirme.
+- Uygun düştüğünde cevabın sonunda merak uyandıran bir soru sor ya da bir
+  sonraki adımı öner. Her mesajda mecbur değilsin; sohbet doğal aksın.
+- Konuştuğunuz kelimeyi hatırla; "bu kelime" dediğinde en son ele alınanı
+  kastediyor.
+
+Biçim:
+- Sade metin yaz. Markdown başlığı, tablo ve numaralı uzun listeler kullanma.
+- Örnek cümleleri ayrı satıra koy, hemen altına Türkçe çevirisini yaz.
+- ${name} kelime ve cümleleri Türkçe karşılığı olmadan bırakma.
+- Kelime o dilde yoksa açıkça söyle ve en yakın olasılığı öner. Çekimli ya da
+  yanlış yazılmış bir biçim gelirse önce sözlük biçimini söyle.`;
 }
 
 interface StreamOptions {
@@ -119,7 +139,7 @@ function geminiRequest(
           role: message.role,
           parts: [{ text: message.text }],
         })),
-        generationConfig: { temperature: 0.4, maxOutputTokens: 600 },
+        generationConfig: { temperature: 0.6, maxOutputTokens: 1600 },
       }),
     },
   ];
@@ -153,8 +173,8 @@ function openaiRequest(
       body: JSON.stringify({
         model,
         stream: true,
-        temperature: 0.4,
-        max_tokens: 600,
+        temperature: 0.6,
+        max_tokens: 1600,
         messages: [
           { role: "system", content: systemPrompt(language) },
           ...messages.map((message) => ({

@@ -2,14 +2,20 @@
 
 **Canlı: <https://haydarsahin0.github.io/21/>**
 
-Hedef dilde bir kelime yaz, **sohbet ederek adım adım aç**.
+Hedef dilde bir kelime yaz, **öğretmenle konuşur gibi aç**.
 
-Uygulama bilgiyi toptan vermiyor. `verstehen` yazdığında önce yalnızca Türkçe
-karşılığını ve nerede kullanıldığını söyler, sonra durur ve sana sorar. Almanca
-tanımını, eş anlamlıları ve nüanslarını, örnek cümleleri, çekimleri ancak sen
-istedikçe getirir — her adım ayrı bir mesaj olarak, yazılırken akarak gelir.
-Aradan sonra kendi sorunu da sorabilirsin; model konuştuğunuz kelimeyi
-hatırlıyor.
+Uygulama sözlük maddesi kopyalamıyor. `verstehen` yazdığında anlamını, nerede
+ve hangi tonda kullanıldığını anlatır, örnek cümleyle gösterir — sonra sohbet
+devam eder. Buradan istediğin yere gidebilirsin:
+
+> “bunu resmi bir mailde kullanabilir miyim?”
+> “begreifen'den farkı ne?”
+> “kurduğum cümle doğru mu?”
+> “bunu aklımda nasıl tutarım?”
+
+Serbest soru sorman beklenen kullanım; hazır bir menüye sıkışmıyorsun. Model
+konuştuğunuz kelimeyi hatırlıyor, cümlelerini düzeltiyor ve her açıklamasını
+örnekle gösteriyor. Cevaplar yazılırken akarak geliyor.
 
 Arka planda [three.js](https://threejs.org) ile çalışan, fareye tepki veren
 bir parçacık bulutsusu var.
@@ -49,19 +55,19 @@ DeepSeek model kimlikleri 24 Temmuz 2026'da değişti: `deepseek-chat` ve
 
 ## Ne veriyor
 
-İlk cevaptan sonra altta hazır adım düğmeleri çıkar; birine basmak sohbeti o
+Aklına bir şey gelmiyorsa altta hazır düğmeler var; birine basmak sohbeti o
 yöne götürür:
 
-| Adım | Ne gelir |
+| Düğme | Ne gelir |
 |---|---|
-| Bu dilde nasıl tanımlanır? | Hedef dilin kendi içinde, tek dilli tanım |
-| Eş anlamlıları | En fazla üç tane, her birinin nüansı Türkçe açıklanmış |
-| Örnek cümle | İki cümle + Türkçe çevirileri |
-| Sık kullanılan kalıplar | `sich gut verstehen mit` gibi birliktelikler |
-| Çekimleri / biçim bilgisi | Artikel, çoğul, fiil çekimleri |
-| Beni sınav et | Tek soru sorar ve cevabını bekler |
+| Daha fazla örnek cümle | Günlük / resmî / yazı dili — üç bağlam, ton farkıyla |
+| Hangi durumlarda kullanılır? | Kiminle, nerede, hangi tonda doğal durur |
+| Benzerlerinden farkı | Yakın kelimelerle fark, aynı cümlede karşılaştırmalı |
+| Cümle kurayım, düzelt | Sana durum verir, cümleni düzeltir |
+| Aklımda nasıl tutarım? | Köken ya da çağrışım + pekiştiren örnek |
+| Beni sınav et | Soru sorar ve cevabını bekler |
 
-Düğmeleri kullanmak zorunda değilsin — kendi sorunu da yazabilirsin.
+Düğmeler sadece kolaylık — asıl kullanım kendi soruna yazmak.
 Konuştuğun kelimeyi tek tuşla kelime defterine ekleyebilir, defteri Anki'ye
 alınabilen TSV olarak indirebilirsin.
 

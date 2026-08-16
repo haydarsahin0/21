@@ -42,7 +42,12 @@ const ColorOrb: React.FC<OrbProps> = ({
   const contrastStrength =
     dimValue < 50 ? Math.max(dimValue * 0.004, 1.2) : Math.max(dimValue * 0.008, 1.5)
 
-  const pixelDot = dimValue < 50 ? Math.max(dimValue * 0.004, 0.05) : Math.max(dimValue * 0.008, 0.1)
+  // Nokta dokusu ince bir gren olsun diye tasarlanmis; boyutla dogru orantili
+  // buyuyunce 100px ustunde gozle secilen bir tarama desenine donusuyordu.
+  const pixelDot =
+    dimValue < 50
+      ? Math.max(dimValue * 0.004, 0.05)
+      : Math.min(Math.max(dimValue * 0.008, 0.1), 0.4)
 
   const shadowRange = dimValue < 50 ? Math.max(dimValue * 0.004, 0.5) : Math.max(dimValue * 0.008, 2)
 
@@ -50,7 +55,17 @@ const ColorOrb: React.FC<OrbProps> = ({
     dimValue < 30 ? "0%" : dimValue < 50 ? "5%" : dimValue < 100 ? "15%" : "25%"
 
   const adjustedContrast =
-    dimValue < 30 ? 1.1 : dimValue < 50 ? Math.max(contrastStrength * 1.2, 1.3) : contrastStrength
+    dimValue < 30
+      ? 1.1
+      : dimValue < 50
+        ? Math.max(contrastStrength * 1.2, 1.3)
+        : contrastStrength
+
+  // ::after'in backdrop-filter'i ::before'u ikinci kez bulanikliyor. Kucuk
+  // ikonlarda bu istenen "film grani" etkisini veriyor, ama 50px ustunde iki
+  // bulaniklik ust uste binince capinin %15'ini asan bir smear olusuyor.
+  const overlayBlur =
+    dimValue < 50 ? blurStrength * 2 : Math.min(blurStrength * 0.4, 2)
 
   return (
     <div
@@ -64,6 +79,7 @@ const ColorOrb: React.FC<OrbProps> = ({
         "--accent3": palette.accent3,
         "--spin-duration": `${spinDuration}s`,
         "--blur": `${blurStrength}px`,
+        "--overlay-blur": `${overlayBlur}px`,
         "--contrast": adjustedContrast,
         "--dot": `${pixelDot}px`,
         "--shadow": `${shadowRange}px`,
@@ -89,6 +105,14 @@ const ColorOrb: React.FC<OrbProps> = ({
           height: 100%;
           border-radius: 50%;
           transform: translateZ(0);
+        }
+
+        /* ::before kapsayicidan genis: blur'un yumusak kenari daire kirpmasinin
+           disinda kaliyor, boylece diskin kenari puslu degil net cikiyor. */
+        .color-orb::before {
+          width: 140%;
+          height: 140%;
+          place-self: center;
         }
 
         .color-orb::before {
@@ -141,7 +165,7 @@ const ColorOrb: React.FC<OrbProps> = ({
             transparent var(--dot)
           );
           background-size: calc(var(--dot) * 2) calc(var(--dot) * 2);
-          backdrop-filter: blur(calc(var(--blur) * 2)) contrast(calc(var(--contrast) * 2));
+          backdrop-filter: blur(var(--overlay-blur)) contrast(calc(var(--contrast) * 2));
           mix-blend-mode: overlay;
         }
 

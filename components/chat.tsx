@@ -28,7 +28,8 @@ import * as storage from "@/lib/storage";
 const ORB_TONES = { base: "oklch(19% 0.025 252)" };
 
 function greeting(language: LanguageCode): string {
-  return `Merhaba. ${LANGUAGES[language].name} bir kelime yaz, birlikte adım adım açalım. Her şeyi bir anda vermeyeceğim — sen istedikçe derinleşeceğiz.`;
+  const name = LANGUAGES[language].name;
+  return `Merhaba. ${name} bir kelime yaz, birlikte açalım — anlamı, nerede kullanıldığı, örnek cümleler. Sonra istediğini sor: “şu kelimeden farkı ne”, “cümlemi düzeltir misin”, “bunu bir mailde kullanabilir miyim”… Sohbet ederek ilerleyelim.`;
 }
 
 export function Chat({
@@ -254,10 +255,12 @@ export function Chat({
         <MorphPanel
           onSubmit={(message) => void send(message)}
           busy={busy}
-          triggerLabel={started ? "Devam et" : "Kelime sor"}
+          triggerLabel={started ? "Devam et" : "Sor"}
           label={LANGUAGES[language].name}
           placeholder={
-            started ? "Bir şey sor…" : `Bir kelime yaz, örn. ${language === "de" ? "verstehen" : "understand"}`
+            started
+              ? "İstediğini sor ya da bir cümle yaz…"
+              : `Bir kelime yaz ya da soru sor, örn. ${language === "de" ? "verstehen" : "understand"}`
           }
         />
       </div>
