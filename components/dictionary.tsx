@@ -6,6 +6,7 @@ import { Download, Settings2, Trash2 } from "lucide-react";
 import { Chat } from "@/components/chat";
 import { MemoryPanel } from "@/components/memory-panel";
 import { StudyPanel } from "@/components/study-panel";
+import { WritingPanel } from "@/components/writing-panel";
 import { SettingsPanel } from "@/components/settings-panel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -74,6 +75,7 @@ export function Dictionary() {
         <TabsList>
           <TabsTrigger value="study">Çalış</TabsTrigger>
           <TabsTrigger value="chat">Sohbet</TabsTrigger>
+          <TabsTrigger value="writing">Yazma</TabsTrigger>
           <TabsTrigger value="saved">
             Defter
             {visibleSaved.length > 0 ? ` (${visibleSaved.length})` : ""}
@@ -170,6 +172,10 @@ export function Dictionary() {
 
       <TabsContent value="study">
         <StudyPanel language={language} settings={settings} />
+      </TabsContent>
+
+      <TabsContent value="writing">
+        <WritingPanel language={language} settings={settings} />
       </TabsContent>
 
       <TabsContent value="memory">

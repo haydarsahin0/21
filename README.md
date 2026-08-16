@@ -99,6 +99,19 @@ Günlük hedef: **20 yeni kelime** (Ayarlar'dan değiştirilebilir).
 
 Amaç kelimeyi tam unutmadan hemen önce tekrar getirmek.
 
+## Yazma — serbest metin değerlendirme
+
+Kendi yazdığın bir metni yapıştır, **Puanla ve düzelt** de:
+
+- 0-100 puan + neyi iyi yaptığın
+- Her hata ayrı satırda: **yanlış → doğru**, nedeni ve tipi (Kasus, Artikel,
+  Verbstellung, Wortwahl, Rechtschreibung, Zeitform)
+- Metnin daha doğru ve daha doğal hâli (senin fikrini koruyarak)
+- Bir sonraki sefer için tek bir tavsiye
+
+Aynı hata tipi bir metinde iki kez geçerse hafızaya not düşülür, sonraki
+sohbetler ve tekrar soruları o noktaya dokunur.
+
 ## Hafıza — "ikinci beyin"
 
 **Hafıza** sekmesi sistemin senin hakkında ne bildiğini gösterir. Üç şey
@@ -161,6 +174,7 @@ components/
   markdown.tsx          model çıktısının markdown olarak çizimi
   chat.tsx              sohbet akışı, adım düğmeleri, durdurma
   study-panel.tsx       günlük hedef ve tekrar oturumu
+  writing-panel.tsx     yazdığın metnin puanlanması ve düzeltilmesi
   memory-panel.tsx      sistemin senin hakkında bildikleri
   settings-panel.tsx    anahtar girişi ve model seçimi
   nebula-background.tsx cihaza göre parçacık sayısı seçer, SSR dışı yükler
@@ -168,6 +182,7 @@ components/
 lib/
   srs.ts                aralıklı tekrar zamanlaması (SM-2)
   study.ts              soru üretme, cevap değerlendirme, yeni kelime önerme
+  writing.ts            metin puanlama, hata çıkarma, hata tipi notları
   typewriter.ts         akan metnin zamana bağlı ortaya çıkışı
   dictionary.ts         diller
   providers.ts          sağlayıcı tanımları (adres, modeller, protokol)
