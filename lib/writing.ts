@@ -87,6 +87,9 @@ Regeln:
     model: call.model,
     memory,
     level: call.level,
+    // Metin degerlendirmesi yapili ve uzun bir cikti: puan, hata listesi ve
+    // metnin duzeltilmis hali. Varsayilan butce yetmiyordu.
+    maxTokens: 4096,
     signal: call.signal,
     onDelta: (chunk) => {
       raw += chunk;

@@ -131,6 +131,8 @@ interface StreamOptions {
   memory?: string;
   /** Aciklamalarin yazilacagi hedef dil seviyesi. */
   level?: string;
+  /** Cikti butcesi. Uzun/yapili cevaplar (metin degerlendirme) daha cok ister. */
+  maxTokens?: number;
   signal?: AbortSignal;
   onDelta: (chunk: string) => void;
 }
@@ -144,7 +146,14 @@ function geminiRequest(
   language: LanguageCode,
   memory: string,
   level: string,
+  maxTokens: number,
 ): [string, RequestInit] {
+  // Gemini 2.5 modellerinde "dusunme" tokenlari da maxOutputTokens butcesinden
+  // yeniyor. Uzun bir gorevde model butun butceyi dusunmeye harcayip bos metin
+  // dondurebiliyor. Flash ailesinde dusunmeyi kapatabiliyoruz; Pro'da en az bir
+  // butce sart oldugu icin orada dokunmuyoruz, sadece butceyi buyuk tutuyoruz.
+  const canDisableThinking = /flash/i.test(model);
+
   return [
     `${baseUrl}/models/${model}:streamGenerateContent?alt=sse`,
     {
@@ -161,7 +170,13 @@ function geminiRequest(
           role: message.role,
           parts: [{ text: message.text }],
         })),
-        generationConfig: { temperature: 0.6, maxOutputTokens: 1600 },
+        generationConfig: {
+          temperature: 0.6,
+          maxOutputTokens: maxTokens,
+          ...(canDisableThinking
+            ? { thinkingConfig: { thinkingBudget: 0 } }
+            : {}),
+        },
       }),
     },
   ];
@@ -176,6 +191,7 @@ function openaiRequest(
   language: LanguageCode,
   memory: string,
   level: string,
+  maxTokens: number,
 ): [string, RequestInit] {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -198,7 +214,7 @@ function openaiRequest(
         model,
         stream: true,
         temperature: 0.6,
-        max_tokens: 1600,
+        max_tokens: maxTokens,
         messages: [
           { role: "system", content: systemPrompt(language, memory, level) },
           ...messages.map((message) => ({
@@ -210,6 +226,19 @@ function openaiRequest(
       }),
     },
   ];
+}
+
+/** Akisin neden bittigini soyleyen alan; bos cevabi aciklamak icin. */
+function readFinishReason(payload: string): string {
+  const parsed = JSON.parse(payload) as {
+    candidates?: { finishReason?: string }[];
+    choices?: { finish_reason?: string }[];
+  };
+  return (
+    parsed.candidates?.[0]?.finishReason ??
+    parsed.choices?.[0]?.finish_reason ??
+    ""
+  );
 }
 
 /** Iki bicimin SSE govdesinden metin parcasini cikarir. */
@@ -243,6 +272,7 @@ export async function streamChat({
   model,
   memory = "",
   level = "A2-B1",
+  maxTokens = 1600,
   signal,
   onDelta,
 }: StreamOptions): Promise<string> {
@@ -253,8 +283,12 @@ export async function streamChat({
   const trimmedBase = baseUrl.replace(/\/$/, "");
   const [url, init] =
     provider.kind === "gemini"
-      ? geminiRequest(trimmedBase, model, apiKey, messages, language, memory, level)
-      : openaiRequest(trimmedBase, model, apiKey, messages, language, memory, level);
+      ? geminiRequest(
+          trimmedBase, model, apiKey, messages, language, memory, level, maxTokens,
+        )
+      : openaiRequest(
+          trimmedBase, model, apiKey, messages, language, memory, level, maxTokens,
+        );
 
   let response: Response;
   try {
@@ -309,6 +343,8 @@ export async function streamChat({
   let buffer = "";
   let full = "";
 
+  let finishReason = "";
+
   const consume = (event: string) => {
     for (const line of event.split("\n")) {
       if (!line.startsWith("data:")) continue;
@@ -316,6 +352,7 @@ export async function streamChat({
       if (!payload || payload === "[DONE]") continue;
 
       try {
+        finishReason = readFinishReason(payload) || finishReason;
         const text = readDelta(provider.kind, payload);
         if (text) {
           full += text;
@@ -346,6 +383,19 @@ export async function streamChat({
   if (buffer.trim()) consume(buffer);
 
   if (!full.trim()) {
+    // En sik sebep: model butun cikti butcesini "dusunerek" harcadi ve geriye
+    // metin kalmadi. Kullaniciya ne yapabilecegini soyluyoruz.
+    if (/MAX_TOKENS/i.test(finishReason)) {
+      throw new ChatError(
+        "Model cevabı bitiremeden sınıra takıldı. Metni biraz kısaltıp tekrar " +
+          "dene, ya da ayarlardan başka bir model seç.",
+      );
+    }
+    if (/SAFETY|BLOCK|RECITATION/i.test(finishReason)) {
+      throw new ChatError(
+        `Sağlayıcı bu isteği engelledi (${finishReason}). Metni biraz değiştirip dene.`,
+      );
+    }
     throw new ChatError("Modelden boş cevap geldi. Tekrar dener misin?");
   }
 
