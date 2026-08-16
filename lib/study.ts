@@ -18,6 +18,8 @@ import type { Provider } from "./providers";
 
 export interface StudyCall {
   language: LanguageCode;
+  /** Aciklamalarin sadelik duzeyi (A2-B1 gibi). */
+  level: string;
   provider: Provider;
   baseUrl: string;
   apiKey: string;
@@ -40,6 +42,7 @@ async function ask(
     apiKey: call.apiKey,
     model: call.model,
     memory,
+    level: call.level,
     signal: call.signal,
     onDelta: (chunk) => {
       output += chunk;
@@ -65,22 +68,25 @@ export async function makeQuestion(
   call: StudyCall,
   word: WordStat,
 ): Promise<string> {
-  const name = LANGUAGES[call.language].name;
+  const native = LANGUAGES[call.language].native;
   const firstTime = word.reps === 0;
 
   const prompt = firstTime
-    ? `Bana **${word.word}** kelimesini öğret. Kısa tut: anlamı, nerede
-kullanıldığı ve bir örnek cümle (Türkçesiyle). Sonunda "Hazırsan seni
-yoklayacağım" gibi bir cümleyle bitir. Soru sorma, sadece öğret.`
-    : `**${word.word}** kelimesi için beni yokla.
+    ? `Erklär mir das Wort **${word.word}**.
 
-Kurallar:
-- TEK bir soru sor ve dur. Cevabı sakın verme.
-- Soru ezber değil kullanım ölçsün. Örneğin: içinde boşluk olan bir ${name}
-  cümle verip doğru kelimeyi sor, ya da bir durum anlatıp "bunu nasıl
-  söylersin" diye sor, ya da yakın bir kelimeyle karıştırmayı test et.
-- Soruyu her seferinde farklı tipte sor, aynı kalıbı tekrarlama.
-- En fazla 3 cümle.`;
+- Zuerst das Wort **fett** und daneben die türkische Bedeutung auf Türkisch.
+- Dann auf einfachem ${native}: Was bedeutet es? Wann benutzt man es?
+- Dann ein Beispielsatz, **fett**.
+- Stell KEINE Frage. Erklär nur. Hör auf, wenn du fertig bist.`
+    : `Prüf mich zum Wort **${word.word}**.
+
+Regeln:
+- Stell NUR EINE Frage und hör dann auf. Gib die Antwort nicht.
+- Die Frage prüft den Gebrauch, nicht das Auswendiglernen. Zum Beispiel: ein
+  ${native} Satz mit einer Lücke, oder eine Situation und "Wie sagst du das?",
+  oder ein Vergleich mit einem ähnlichen Wort.
+- Stell jedes Mal einen anderen Fragetyp. Wiederhole nicht dasselbe Muster.
+- Höchstens drei kurze Sätze. Einfaches ${native} (Niveau ${call.level}).`;
 
   const memory = await buildMemoryBlock(call.language, word.word);
   return ask(call, [{ role: "user", text: prompt }], memory);
@@ -101,26 +107,30 @@ export async function gradeAnswer(
   question: string,
   answer: string,
 ): Promise<Verdict> {
-  const prompt = `Sorduğun soru şuydu:
+  const native = LANGUAGES[call.language].native;
+
+  const prompt = `Deine Frage war:
 ${question}
 
-Öğrencinin cevabı:
+Die Antwort des Schülers:
 ${answer}
 
-Bu cevabı değerlendir. Önce JSON, sonra hiçbir şey yazma. Biçim:
-{"score": 0-100 arası sayı, "feedback": "Türkçe geri bildirim"}
+Bewerte diese Antwort. Schreib NUR JSON, sonst nichts. Format:
+{"score": Zahl von 0 bis 100, "feedback": "Rückmeldung auf einfachem ${native}"}
 
-feedback şunları içersin (kısa, en fazla 4 cümle):
-- Cevap doğru mu, kısmen mi doğru, yanlış mı — açıkça söyle.
-- Yanlış ya da eksikse doğrusunu **kalın** yaz ve neden öyle olduğunu bir
-  cümleyle açıkla.
-- Aklında kalması için kelimenin geçtiği kısa bir örnek cümle + Türkçesi ekle.
-- Cesaret kırma.`;
+Die Rückmeldung (kurz, höchstens vier Sätze, Niveau ${call.level}):
+- Sag klar: richtig, teilweise richtig oder falsch.
+- Wenn etwas falsch ist, schreib die richtige Form **fett** und erklär in einem
+  einfachen Satz, warum.
+- Gib einen kurzen Beispielsatz mit dem Wort, damit es im Kopf bleibt.
+- Schreib auf ${native}, nicht auf Türkisch. Nur die Bedeutung eines Wortes
+  darf auf Türkisch stehen.
+- Mach dem Schüler Mut.`;
 
   const raw = await ask(
     call,
     [
-      { role: "user", text: `**${word.word}** kelimesi için beni yokla.` },
+      { role: "user", text: `Prüf mich zum Wort **${word.word}**.` },
       { role: "model", text: question },
       { role: "user", text: prompt },
     ],
@@ -157,18 +167,19 @@ export async function suggestNewWords(
   known: string[],
   count: number,
 ): Promise<NewWord[]> {
-  const name = LANGUAGES[call.language].name;
+  const native = LANGUAGES[call.language].native;
   const avoid = known.slice(-200).join(", ");
 
-  const prompt = `Bana ${count} tane yeni ${name} kelime öner.
+  const prompt = `Schlag mir ${count} neue ${native} Wörter vor.
 
-- Benim seviyeme ve ilgi alanlarıma uysun; gerçekten işime yarayacak,
-  günlük hayatta ya da yazışmada geçen kelimeler olsun.
-- Şu kelimeleri ÖNERME, onları zaten biliyorum: ${avoid || "(henüz yok)"}
-- Nadir, süslü kelimeler seçme.
+- Passend zu meinem Niveau (${call.level}) und meinen Interessen. Wörter, die
+  ich wirklich brauche — im Alltag oder beim Schreiben.
+- Schlag diese Wörter NICHT vor, die kenne ich schon: ${avoid || "(noch keine)"}
+- Keine seltenen oder gehobenen Wörter.
 
-Sadece JSON dizisi döndür, başka hiçbir şey yazma:
-[{"word":"kelime","gloss":"kısa Türkçe karşılığı"}]`;
+Antworte NUR mit einem JSON-Array, sonst nichts.
+"gloss" ist die türkische Bedeutung, auf Türkisch:
+[{"word":"Wort","gloss":"türkçe karşılığı"}]`;
 
   const memory = await buildMemoryBlock(call.language, null);
   const raw = await ask(call, [{ role: "user", text: prompt }], memory);

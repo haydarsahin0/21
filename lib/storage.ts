@@ -33,9 +33,15 @@ export interface SavedWord {
   createdAt: number;
 }
 
+/** Aciklamalarin yazilacagi hedef dil seviyesi. */
+export const EXPLAIN_LEVELS = ["A1", "A2", "A2-B1", "B1", "B2", "C1"] as const;
+export type ExplainLevel = (typeof EXPLAIN_LEVELS)[number];
+
 export interface Settings {
   provider: string;
   model: string;
+  /** Aciklamalarin sadelik duzeyi. */
+  explainLevel: ExplainLevel;
   /** Saglayici basina anahtar: saglayici degistirince oncekini kaybetme. */
   keys: Record<string, string>;
   /** Yalniz "custom" saglayici icin. */
@@ -83,6 +89,7 @@ const EMPTY_SAVED: SavedWord[] = [];
 const EMPTY_SETTINGS: Settings = {
   provider: DEFAULT_PROVIDER,
   model: defaultModel(DEFAULT_PROVIDER),
+  explainLevel: "A2-B1",
   keys: {},
   customBaseUrl: "",
 };
@@ -112,6 +119,7 @@ function hydrate(): void {
     settingsSnapshot = {
       provider: stored.provider ?? DEFAULT_PROVIDER,
       model: stored.model ?? defaultModel(stored.provider ?? DEFAULT_PROVIDER),
+      explainLevel: stored.explainLevel ?? "A2-B1",
       keys: stored.keys ?? {},
       customBaseUrl: stored.customBaseUrl ?? "",
     };
@@ -126,6 +134,7 @@ function hydrate(): void {
     settingsSnapshot = {
       provider: "google",
       model: legacyModel,
+      explainLevel: "A2-B1",
       keys: { google: legacyKey },
       customBaseUrl: "",
     };

@@ -33,80 +33,90 @@ export const STEP_SUGGESTIONS: Suggestion[] = [
   {
     label: "Daha fazla örnek cümle",
     prompt:
-      "Bu kelimeyle farklı bağlamlardan üç örnek cümle kur — biri günlük konuşma, biri resmî/iş yazışması, biri de yazı dili olsun. Her birinin Türkçe çevirisini yaz ve aradaki ton farkını kısaca açıkla.",
+      "Gib mir drei Beispielsätze mit diesem Wort: einen aus dem Alltag, einen aus einer E-Mail bei der Arbeit, einen aus einem Text. Erkläre den Unterschied im Ton mit einfachen Wörtern.",
   },
   {
     label: "Hangi durumlarda kullanılır?",
     prompt:
-      "Bu kelime hangi bağlamlarda doğal durur, hangilerinde durmaz? Kiminle, nerede, hangi tonda kullanılır? Örneklerle anlat.",
+      "Wann benutzt man dieses Wort und wann nicht? Mit wem, wo, in welchem Ton? Zeig es mit Beispielen.",
   },
   {
     label: "Benzerlerinden farkı",
     prompt:
-      "Bu kelimeye yakın anlamlı kelimeler neler ve aralarındaki fark tam olarak ne? Farkı örnek cümlelerle göster — aynı cümlede biri olur diğeri olmaz gibi.",
+      "Welche Wörter haben eine ähnliche Bedeutung? Was ist der Unterschied? Zeig den Unterschied in Beispielsätzen: hier passt das eine, dort das andere.",
   },
   {
     label: "Cümle kurayım, düzelt",
     prompt:
-      "Bu kelimeyle bir cümle kurmak istiyorum. Bana bir durum ver, ben cümleyi yazayım, sonra düzelt.",
+      "Gib mir eine Situation. Ich schreibe dann einen Satz mit diesem Wort, und du korrigierst ihn.",
   },
   {
     label: "Aklımda nasıl tutarım?",
     prompt:
-      "Bu kelimeyi aklımda tutmam için bir yol öner: kökeni, benzediği bir kelime, ya da akılda kalıcı bir çağrışım. Sonra bunu pekiştiren bir örnek cümle ver.",
+      "Wie kann ich mir dieses Wort gut merken? Nenn mir eine Eselsbrücke, die Herkunft oder ein ähnliches Wort. Danach ein Beispielsatz dazu.",
   },
   {
     label: "Beni sınav et",
     prompt:
-      "Bana bu kelimeyle ilgili tek bir soru sor ve cevabımı bekle. Cevabı hemen verme; ben cevaplayınca değerlendir.",
+      "Stell mir eine einzige Frage zu diesem Wort und warte auf meine Antwort. Gib die Antwort nicht sofort.",
   },
 ];
 
-export function systemPrompt(language: LanguageCode, memory = ""): string {
+export function systemPrompt(
+  language: LanguageCode,
+  memory = "",
+  level = "A2-B1",
+): string {
   const { name, native } = LANGUAGES[language];
   return (
-    `Sen Türkçe konuşan, ${name} (${native}) öğreten deneyimli bir dil
-öğretmenisin. Karşındaki kişi ${name} öğreniyor ve seninle sohbet ediyor.
+    `Du bist ein erfahrener ${native}-Lehrer. Dein Schüler lernt ${native} und
+spricht Türkisch als Muttersprache.
 
-SEN BİR SÖZLÜK DEĞİL, ÖĞRETMENSİN.
-Bir kelimeyi açıklarken sadece karşılığını söylemekle yetinme: nerede, kimler
-arasında, hangi tonda kullanıldığını da anlat. Anlattığın şeyi örnekle göster.
-Söylediğin her kural ya da nüansın hemen ardından o şeyin geçtiği kısa bir
-${name} cümle ver ve Türkçesini yaz. Örneksiz açıklama yapma.
+WICHTIGSTE REGEL — SPRACHE:
+Schreibe fast alles auf EINFACHEM ${native} (Niveau ${level}).
+Erklärungen, Beispiele, Fragen und Rückmeldungen: auf ${native}.
+NUR die türkische Bedeutung eines Wortes schreibst du auf Türkisch.
 
-Serbest sohbet:
-- Kullanıcı sana istediğini sorabilir: "bunu bir mailde kullanabilir miyim",
-  "şu kelimeden farkı ne", "kurduğum cümle doğru mu", "bunu neden böyle
-  çekiyoruz", "hangi durumda kullanılmaz", "aklımda nasıl tutarım" gibi.
-  Hepsine gerçekten, doğrudan ve doyurucu cevap ver. Konuyu hazır bir menüye
-  sıkıştırma, kullanıcının götürdüğü yere git.
-- Kullanıcı bir cümle kurarsa düzelt: önce doğrusunu yaz, sonra neyin neden
-  yanlış olduğunu tek iki cümleyle açıkla. Küçük hataları da atlama ama
-  cesaretini kırma.
-- Konu kelimeden dilbilgisine, kültüre ya da telaffuza kayabilir — takip et.
-- Kullanıcı ${name} yazarsa ${name} anlayıp Türkçe açıkla.
+So schreibst du auf Niveau ${level}:
+- Kurze Sätze. Ein Gedanke pro Satz.
+- Häufige, einfache Wörter. Keine seltenen oder gehobenen Wörter.
+- Keine langen Nebensatzketten, kein Konjunktiv II, kein Passiv, wenn es auch
+  einfacher geht.
+- Wenn du ein schweres Wort brauchst, erkläre es sofort mit einfachen Wörtern.
 
-Ritim ve uzunluk:
-- Bir kelimenin bütün sözlük maddesini ilk mesajda boşaltma. Sadece bir kelime
-  yazıldığında: anlamını ver, bir cümleyle nerede/nasıl kullanıldığını anlat,
-  bir örnek cümle + çevirisini ekle. Eş anlamlılar, çekim tabloları, bütün
-  kalıplar o mesajda yer almasın — onları konuşarak açacaksınız.
-- Ama sorulan şeyi kısa kesme. Uzunluğu soruya göre ayarla: basit bir soruya
-  birkaç cümle, "farkı ne" gibi bir soruya birkaç paragraf. Yapay kısaltma
-  yapma, gereksiz de şişirme.
-- Uygun düştüğünde cevabın sonunda merak uyandıran bir soru sor ya da bir
-  sonraki adımı öner. Her mesajda mecbur değilsin; sohbet doğal aksın.
-- Konuştuğunuz kelimeyi hatırla; "bu kelime" dediğinde en son ele alınanı
-  kastediyor.
+Format eines neuen Wortes:
+- Zuerst das Wort **fett** und daneben die türkische Bedeutung auf Türkisch.
+  Beispiel: **fragen** — sormak
+- Dann auf einfachem ${native}: Was bedeutet es? Wann benutzt man es?
+- Dann ein Beispielsatz auf ${native}, **fett**. Danach eine ganz einfache
+  ${native} Erklärung des Satzes — KEINE türkische Übersetzung.
 
-Biçim:
-- Hedef dildeki kelime ve örnek cümleleri **kalın** yaz; okurken göze çarpsın.
-  Vurgulamak istediğin bir nüansı *eğik* yazabilirsin. Bunları abartma.
-- Kısa madde listesi kullanabilirsin ama başlık ve tablo kullanma.
-- Örnek cümleleri ayrı satıra koy, hemen altına Türkçe çevirisini yaz.
-- ${name} kelime ve cümleleri Türkçe karşılığı olmadan bırakma.
-- Kelime o dilde yoksa açıkça söyle ve en yakın olasılığı öner. Çekimli ya da
-  yanlış yazılmış bir biçim gelirse önce sözlük biçimini söyle.` + memory
+Als Lehrer:
+- Du bist kein Wörterbuch. Erkläre auch, wo und mit wem man das Wort benutzt.
+- Nach jeder Regel kommt sofort ein Beispiel. Nie erklären ohne Beispiel.
+- Der Schüler darf alles fragen: "Kann ich das in einer E-Mail schreiben?",
+  "Was ist der Unterschied zu ...?", "Ist mein Satz richtig?". Antworte direkt
+  und vollständig — aber immer auf einfachem ${native}.
+- Wenn der Schüler einen Satz schreibt, korrigiere ihn: erst der richtige Satz,
+  dann in ein bis zwei einfachen Sätzen das Warum.
+- Wenn der Schüler dich auf Türkisch bittet, etwas auf Türkisch zu erklären,
+  dann mach das. Sonst bleibst du bei ${native}.
+- Wenn der Schüler gar nichts versteht, wiederhole es noch einfacher — nicht
+  auf Türkisch.
+
+Rhythmus:
+- Gib beim ersten Mal nicht alles. Ein Wort: Bedeutung, kurze Erklärung, ein
+  Beispiel. Synonyme, Tabellen und alle Formen kommen später im Gespräch.
+- Aber kürze eine echte Frage nicht ab. Länge passt zur Frage.
+- Merke dir das Wort, über das ihr sprecht.
+
+Form:
+- Wörter und Beispielsätze auf ${native} schreibst du **fett**.
+- Kurze Listen sind erlaubt. Keine Überschriften, keine Tabellen.
+- Beispielsätze stehen in einer eigenen Zeile.
+- Türkische Bedeutung eines Wortes: auf Türkisch, direkt neben dem Wort.
+
+(Hinweis: ${name} = ${native}.)` + memory
   );
 }
 
@@ -119,6 +129,8 @@ interface StreamOptions {
   model: string;
   /** Sistem promptuna eklenecek "ikinci beyin" blogu. */
   memory?: string;
+  /** Aciklamalarin yazilacagi hedef dil seviyesi. */
+  level?: string;
   signal?: AbortSignal;
   onDelta: (chunk: string) => void;
 }
@@ -131,6 +143,7 @@ function geminiRequest(
   messages: ChatMessage[],
   language: LanguageCode,
   memory: string,
+  level: string,
 ): [string, RequestInit] {
   return [
     `${baseUrl}/models/${model}:streamGenerateContent?alt=sse`,
@@ -141,7 +154,9 @@ function geminiRequest(
         "x-goog-api-key": apiKey,
       },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: systemPrompt(language, memory) }] },
+        systemInstruction: {
+          parts: [{ text: systemPrompt(language, memory, level) }],
+        },
         contents: messages.map((message) => ({
           role: message.role,
           parts: [{ text: message.text }],
@@ -160,6 +175,7 @@ function openaiRequest(
   messages: ChatMessage[],
   language: LanguageCode,
   memory: string,
+  level: string,
 ): [string, RequestInit] {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -184,7 +200,7 @@ function openaiRequest(
         temperature: 0.6,
         max_tokens: 1600,
         messages: [
-          { role: "system", content: systemPrompt(language, memory) },
+          { role: "system", content: systemPrompt(language, memory, level) },
           ...messages.map((message) => ({
             // OpenAI bicimi modelin rolunu "assistant" diye adlandiriyor.
             role: message.role === "model" ? "assistant" : "user",
@@ -226,6 +242,7 @@ export async function streamChat({
   apiKey,
   model,
   memory = "",
+  level = "A2-B1",
   signal,
   onDelta,
 }: StreamOptions): Promise<string> {
@@ -236,8 +253,8 @@ export async function streamChat({
   const trimmedBase = baseUrl.replace(/\/$/, "");
   const [url, init] =
     provider.kind === "gemini"
-      ? geminiRequest(trimmedBase, model, apiKey, messages, language, memory)
-      : openaiRequest(trimmedBase, model, apiKey, messages, language, memory);
+      ? geminiRequest(trimmedBase, model, apiKey, messages, language, memory, level)
+      : openaiRequest(trimmedBase, model, apiKey, messages, language, memory, level);
 
   let response: Response;
   try {

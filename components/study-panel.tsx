@@ -76,6 +76,7 @@ export function StudyPanel({
       const provider = getProvider(settings.provider);
       return {
         language,
+        level: settings.explainLevel,
         provider,
         baseUrl: provider.editableBaseUrl
           ? settings.customBaseUrl

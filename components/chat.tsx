@@ -142,6 +142,7 @@ export function Chat({
           apiKey,
           model: settings.model,
           memory,
+          level: settings.explainLevel,
           signal: controller.signal,
           onDelta: (chunk) => typewriter.push(chunk),
         });

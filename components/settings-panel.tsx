@@ -29,6 +29,9 @@ export function SettingsPanel({
   const [keys, setKeys] = useState<Record<string, string>>(settings.keys);
   const [model, setModel] = useState(settings.model);
   const [customBaseUrl, setCustomBaseUrl] = useState(settings.customBaseUrl);
+  const [explainLevel, setExplainLevel] = useState<storage.ExplainLevel>(
+    settings.explainLevel,
+  );
 
   const provider = getProvider(providerId);
   const apiKey = keys[providerId] ?? "";
@@ -116,6 +119,7 @@ export function SettingsPanel({
             storage.setSettings({
               provider: providerId,
               model: effectiveModel.trim(),
+              explainLevel,
               keys: { ...keys, [providerId]: apiKey.trim() },
               customBaseUrl: customBaseUrl.trim(),
             });
@@ -183,6 +187,33 @@ export function SettingsPanel({
                 className="h-11 font-mono text-base"
               />
             )}
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-muted-foreground text-xs">
+              Açıklama seviyesi
+            </label>
+            <Select
+              value={explainLevel}
+              onValueChange={(value) =>
+                setExplainLevel(value as storage.ExplainLevel)
+              }
+            >
+              <SelectTrigger className="h-11 w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {storage.EXPLAIN_LEVELS.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-muted-foreground text-xs">
+              Açıklamalar bu seviyede, hedef dilde yazılır. Sadece kelimenin
+              Türkçe karşılığı Türkçe olur.
+            </p>
           </div>
 
           <div className="flex gap-2">
