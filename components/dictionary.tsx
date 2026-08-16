@@ -4,6 +4,7 @@ import { useState, useSyncExternalStore } from "react";
 import { Download, Settings2, Trash2 } from "lucide-react";
 
 import { Chat } from "@/components/chat";
+import { MemoryPanel } from "@/components/memory-panel";
 import { SettingsPanel } from "@/components/settings-panel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -72,9 +73,10 @@ export function Dictionary() {
         <TabsList>
           <TabsTrigger value="chat">Sohbet</TabsTrigger>
           <TabsTrigger value="saved">
-            Kelime Defteri
+            Defter
             {visibleSaved.length > 0 ? ` (${visibleSaved.length})` : ""}
           </TabsTrigger>
+          <TabsTrigger value="memory">Hafıza</TabsTrigger>
         </TabsList>
 
         <Select
@@ -162,6 +164,10 @@ export function Dictionary() {
             ))}
           </div>
         )}
+      </TabsContent>
+
+      <TabsContent value="memory">
+        <MemoryPanel language={language} />
       </TabsContent>
     </Tabs>
   );

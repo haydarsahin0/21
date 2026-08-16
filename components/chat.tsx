@@ -22,6 +22,12 @@ import {
   normalizeWord,
   type LanguageCode,
 } from "@/lib/dictionary";
+import {
+  bumpWord,
+  buildMemoryBlock,
+  rememberMessage,
+} from "@/lib/memory";
+import { EXTRACT_EVERY, extractProfile } from "@/lib/profile";
 import { getProvider } from "@/lib/providers";
 import * as storage from "@/lib/storage";
 
@@ -56,6 +62,8 @@ export function Chat({
   );
 
   const abortRef = useRef<AbortController | null>(null);
+  // Kacinci asistan cevabindayiz — profil cikarimini seyreltmek icin.
+  const turnRef = useRef(0);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   // Kullanici yukari kaydirdiysa otomatik takip etmeyi birak.
@@ -82,6 +90,7 @@ export function Chat({
       const maybeWord = extractWord(trimmed);
       if (maybeWord) setWord(maybeWord);
 
+      const activeWord = maybeWord ?? word;
       const next: ChatMessage[] = [...messages, { role: "user", text: trimmed }];
       setMessages(next);
       setStreaming("");
@@ -92,22 +101,57 @@ export function Chat({
       const controller = new AbortController();
       abortRef.current = controller;
 
+      const provider = getProvider(settings.provider);
+      const baseUrl = provider.editableBaseUrl
+        ? settings.customBaseUrl
+        : provider.baseUrl;
+      const apiKey = storage.currentKey(settings);
+
       try {
-        const provider = getProvider(settings.provider);
+        void rememberMessage({
+          role: "user",
+          text: trimmed,
+          language,
+          word: activeWord,
+        });
+        if (maybeWord) void bumpWord(maybeWord, language);
+
+        const memory = await buildMemoryBlock(language, activeWord);
+
         const full = await streamChat({
           messages: next,
           language,
           provider,
-          baseUrl: provider.editableBaseUrl
-            ? settings.customBaseUrl
-            : provider.baseUrl,
-          apiKey: storage.currentKey(settings),
+          baseUrl,
+          apiKey,
           model: settings.model,
+          memory,
           signal: controller.signal,
           onDelta: (chunk) => setStreaming((prev) => prev + chunk),
         });
         if (controller.signal.aborted) return;
         setMessages([...next, { role: "model", text: full }]);
+
+        void rememberMessage({
+          role: "model",
+          text: full,
+          language,
+          word: activeWord,
+        });
+
+        // Profil cikarimi ek bir model cagrisi; her turda degil, birkac turda
+        // bir calisiyor ve arka planda kaliyor — sohbeti bekletmiyor.
+        turnRef.current += 1;
+        if (turnRef.current % EXTRACT_EVERY === 0) {
+          void extractProfile({
+            messages: [...next, { role: "model", text: full }],
+            language,
+            provider,
+            baseUrl,
+            apiKey,
+            model: settings.model,
+          });
+        }
       } catch (err) {
         if (controller.signal.aborted) return;
         setError(err instanceof Error ? err.message : String(err));
@@ -119,7 +163,7 @@ export function Chat({
         abortRef.current = null;
       }
     },
-    [busy, language, messages, settings],
+    [busy, language, messages, settings, word],
   );
 
   const stop = () => {

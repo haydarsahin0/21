@@ -70,6 +70,7 @@ const ColorOrb: React.FC<OrbProps> = ({
   return (
     <div
       className={cn("color-orb", className)}
+      data-grain={dimValue < 50 ? "on" : "off"}
       style={{
         width: dimension,
         height: dimension,
@@ -92,8 +93,14 @@ const ColorOrb: React.FC<OrbProps> = ({
           grid-template-areas: "stack";
           overflow: hidden;
           border-radius: 50%;
+          /* border-radius + overflow:hidden, kendi katmanina terfi etmis
+             cocuklari (translateZ, filter, backdrop-filter) bazi tarayicilarda
+             kirpmiyor; ::before kapsayicidan genis oldugu icin bu durumda
+             kare gorunuyordu. clip-path her durumda kirpiyor. */
+          clip-path: circle(50%);
           position: relative;
           transform: scale(1.1);
+          isolation: isolate;
         }
 
         .color-orb::before,
@@ -167,6 +174,10 @@ const ColorOrb: React.FC<OrbProps> = ({
           background-size: calc(var(--dot) * 2) calc(var(--dot) * 2);
           backdrop-filter: blur(var(--overlay-blur)) contrast(calc(var(--contrast) * 2));
           mix-blend-mode: overlay;
+        }
+
+        .color-orb[data-grain="off"]::after {
+          display: none;
         }
 
         .color-orb[style*="--mask: 0%"]::after {

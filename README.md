@@ -17,6 +17,10 @@ Serbest soru sorman beklenen kullanım; hazır bir menüye sıkışmıyorsun. Mo
 konuştuğunuz kelimeyi hatırlıyor, cümlelerini düzeltiyor ve her açıklamasını
 örnekle gösteriyor. Cevaplar yazılırken akarak geliyor.
 
+Konuştukça seni tanıyor: seviyeni, ilgi alanlarını, takıldığın noktaları not
+alıyor ve sonraki sohbetlerde bunlara göre konuşuyor. Notların tamamı senin
+cihazında kalıyor.
+
 Arka planda [three.js](https://threejs.org) ile çalışan, fareye tepki veren
 bir parçacık bulutsusu var.
 
@@ -75,6 +79,27 @@ Desteklenen diller: Almanca, İngilizce, Fransızca, İspanyolca, İtalyanca,
 Rusça, Arapça. Yenisini eklemek için `lib/dictionary.ts` içindeki `LANGUAGES`
 nesnesine bir satır yazman yeterli.
 
+## Hafıza — "ikinci beyin"
+
+**Hafıza** sekmesi sistemin senin hakkında ne bildiğini gösterir. Üç şey
+tutuluyor, hepsi tarayıcının IndexedDB'sinde:
+
+| Ne | Nasıl kullanılıyor |
+|---|---|
+| **Notlar** | Model birkaç turda bir konuşmadan çıkarım yapar: seviyen, ilgi alanın, zorlandığın nokta, öğrenme tarzın, hedefin. Sonraki sohbetlerde sistem promptuna eklenir. |
+| **Kelime sayaçları** | Aynı kelimeyi tekrar sorduğunda "tam oturmamış" sayılır ve model bunu bilir. |
+| **Konuşma geçmişi** | Aynı kelimeye döndüğünde model daha önce ne anlattığını görür ve tekrarlamak yerine bir adım ileri götürür. |
+
+Her notu tek tek silebilir, hepsini birden unutturabilir ya da JSON olarak
+indirebilirsin. Hiçbiri sunucuya gitmiyor — zaten sunucu yok.
+
+Depolama katmanı [Dexie.js](https://github.com/dexie/Dexie.js) (IndexedDB
+sarmalayıcısı). Sunucu tarafı hafıza servisleri (mem0, MemMachine) bu mimariye
+uymuyor: hepsi sunucu + vektör veritabanı istiyor, bu site ise statik.
+
+Profil çıkarımı fazladan bir model çağrısı olduğu için her mesajda değil, üç
+turda bir çalışır ve arka planda kalır — sohbeti bekletmez.
+
 ## Kota
 
 Sınır **mesaj başına** işler; sohbetin her adımı bir mesaj sayılır. Gemini'de
@@ -114,6 +139,7 @@ app/
 components/
   dictionary.tsx        sekmeler, dil seçimi, kelime defteri
   chat.tsx              sohbet akışı, adım düğmeleri, durdurma
+  memory-panel.tsx      sistemin senin hakkında bildikleri
   settings-panel.tsx    anahtar girişi ve model seçimi
   nebula-background.tsx cihaza göre parçacık sayısı seçer, SSR dışı yükler
   ui/                   shadcn bileşenleri + quantum-nebula.tsx + ai-input.tsx
@@ -121,6 +147,8 @@ lib/
   dictionary.ts         diller
   providers.ts          sağlayıcı tanımları (adres, modeller, protokol)
   chat.ts               sohbet promptu + SSE akışı (Gemini ve OpenAI biçimi)
+  memory.ts             Dexie/IndexedDB: notlar, kelime sayaçları, geçmiş
+  profile.ts            konuşmadan profil çıkarımı
   storage.ts            localStorage: anahtarlar, dil, kelime defteri
 python-v1/              ilk sürüm (FastAPI + düz HTML). Artık gerekli değil.
 ```

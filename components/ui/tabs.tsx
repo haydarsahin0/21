@@ -57,7 +57,13 @@ function TabsContent({
   return (
     <TabsPrimitive.Content
       data-slot="tabs-content"
-      className={cn("flex-1 outline-none", className)}
+      // forceMount ile kalan icerik pasifken Radix'in `hidden` niteligine
+      // guvenemiyoruz (stil katmani onu her zaman display:none yapmiyor);
+      // durumu dogrudan data-state uzerinden kapatiyoruz.
+      className={cn(
+        "flex-1 outline-none data-[state=inactive]:hidden",
+        className,
+      )}
       {...props}
     />
   );

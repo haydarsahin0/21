@@ -62,9 +62,10 @@ export const STEP_SUGGESTIONS: Suggestion[] = [
   },
 ];
 
-export function systemPrompt(language: LanguageCode): string {
+export function systemPrompt(language: LanguageCode, memory = ""): string {
   const { name, native } = LANGUAGES[language];
-  return `Sen Türkçe konuşan, ${name} (${native}) öğreten deneyimli bir dil
+  return (
+    `Sen Türkçe konuşan, ${name} (${native}) öğreten deneyimli bir dil
 öğretmenisin. Karşındaki kişi ${name} öğreniyor ve seninle sohbet ediyor.
 
 SEN BİR SÖZLÜK DEĞİL, ÖĞRETMENSİN.
@@ -103,7 +104,8 @@ Biçim:
 - Örnek cümleleri ayrı satıra koy, hemen altına Türkçe çevirisini yaz.
 - ${name} kelime ve cümleleri Türkçe karşılığı olmadan bırakma.
 - Kelime o dilde yoksa açıkça söyle ve en yakın olasılığı öner. Çekimli ya da
-  yanlış yazılmış bir biçim gelirse önce sözlük biçimini söyle.`;
+  yanlış yazılmış bir biçim gelirse önce sözlük biçimini söyle.` + memory
+  );
 }
 
 interface StreamOptions {
@@ -113,6 +115,8 @@ interface StreamOptions {
   baseUrl: string;
   apiKey: string;
   model: string;
+  /** Sistem promptuna eklenecek "ikinci beyin" blogu. */
+  memory?: string;
   signal?: AbortSignal;
   onDelta: (chunk: string) => void;
 }
@@ -124,6 +128,7 @@ function geminiRequest(
   apiKey: string,
   messages: ChatMessage[],
   language: LanguageCode,
+  memory: string,
 ): [string, RequestInit] {
   return [
     `${baseUrl}/models/${model}:streamGenerateContent?alt=sse`,
@@ -134,7 +139,7 @@ function geminiRequest(
         "x-goog-api-key": apiKey,
       },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: systemPrompt(language) }] },
+        systemInstruction: { parts: [{ text: systemPrompt(language, memory) }] },
         contents: messages.map((message) => ({
           role: message.role,
           parts: [{ text: message.text }],
@@ -152,6 +157,7 @@ function openaiRequest(
   apiKey: string,
   messages: ChatMessage[],
   language: LanguageCode,
+  memory: string,
 ): [string, RequestInit] {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -176,7 +182,7 @@ function openaiRequest(
         temperature: 0.6,
         max_tokens: 1600,
         messages: [
-          { role: "system", content: systemPrompt(language) },
+          { role: "system", content: systemPrompt(language, memory) },
           ...messages.map((message) => ({
             // OpenAI bicimi modelin rolunu "assistant" diye adlandiriyor.
             role: message.role === "model" ? "assistant" : "user",
@@ -217,6 +223,7 @@ export async function streamChat({
   baseUrl,
   apiKey,
   model,
+  memory = "",
   signal,
   onDelta,
 }: StreamOptions): Promise<string> {
@@ -227,8 +234,8 @@ export async function streamChat({
   const trimmedBase = baseUrl.replace(/\/$/, "");
   const [url, init] =
     provider.kind === "gemini"
-      ? geminiRequest(trimmedBase, model, apiKey, messages, language)
-      : openaiRequest(trimmedBase, model, apiKey, messages, language);
+      ? geminiRequest(trimmedBase, model, apiKey, messages, language, memory)
+      : openaiRequest(trimmedBase, model, apiKey, messages, language, memory);
 
   let response: Response;
   try {
