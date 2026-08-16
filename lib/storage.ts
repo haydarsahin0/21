@@ -21,6 +21,7 @@ import { DEFAULT_PROVIDER, defaultModel } from "./providers";
 const SAVED_KEY = "sozluk:saved:v1";
 const LANGUAGE_KEY = "sozluk:lang:v1";
 const SETTINGS_KEY = "sozluk:settings:v2";
+const GOAL_KEY = "sozluk:goal:v1";
 // v1 anahtarlari: yalniz Gemini varken kullaniliyordu, goc icin okunuyor.
 const LEGACY_API_KEY = "sozluk:apikey:v1";
 const LEGACY_MODEL_KEY = "sozluk:model:v1";
@@ -197,6 +198,19 @@ export function unsaveWord(word: string, language: LanguageCode): void {
     (entry) => !(entry.word === normalized && entry.language === language),
   );
   write(SAVED_KEY, savedSnapshot);
+  emit();
+}
+
+/** Gunluk yeni kelime hedefi. */
+export function getGoal(): number {
+  if (typeof window === "undefined") return 20;
+  const raw = Number(window.localStorage.getItem(GOAL_KEY));
+  return Number.isFinite(raw) && raw > 0 ? raw : 20;
+}
+
+export function setGoal(value: number): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(GOAL_KEY, String(Math.max(1, Math.round(value))));
   emit();
 }
 

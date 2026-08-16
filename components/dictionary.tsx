@@ -5,6 +5,7 @@ import { Download, Settings2, Trash2 } from "lucide-react";
 
 import { Chat } from "@/components/chat";
 import { MemoryPanel } from "@/components/memory-panel";
+import { StudyPanel } from "@/components/study-panel";
 import { SettingsPanel } from "@/components/settings-panel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -68,9 +69,10 @@ export function Dictionary() {
   }
 
   return (
-    <Tabs defaultValue="chat" className="gap-6">
+    <Tabs defaultValue="study" className="gap-6">
       <div className="flex flex-wrap items-center justify-center gap-2">
         <TabsList>
+          <TabsTrigger value="study">Çalış</TabsTrigger>
           <TabsTrigger value="chat">Sohbet</TabsTrigger>
           <TabsTrigger value="saved">
             Defter
@@ -164,6 +166,10 @@ export function Dictionary() {
             ))}
           </div>
         )}
+      </TabsContent>
+
+      <TabsContent value="study">
+        <StudyPanel language={language} settings={settings} />
       </TabsContent>
 
       <TabsContent value="memory">

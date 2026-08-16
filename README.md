@@ -83,6 +83,22 @@ Desteklenen diller: Almanca, İngilizce, Fransızca, İspanyolca, İtalyanca,
 Rusça, Arapça. Yenisini eklemek için `lib/dictionary.ts` içindeki `LANGUAGES`
 nesnesine bir satır yazman yeterli.
 
+## Çalış — aralıklı tekrar
+
+Günlük hedef: **20 yeni kelime** (Ayarlar'dan değiştirilebilir).
+
+1. **Yeni kelime getir** — model, hafızandaki seviyene ve ilgi alanına göre
+   daha önce görmediğin kelimeler önerir, tek tek öğretir.
+2. Öğrenilen kelime tekrar sırasına girer: 1 dk → 10 dk → 1 gün → giderek
+   uzayan aralıklar (SM-2).
+3. Tekrar zamanı gelince model **soru sorar** — ezber değil kullanım ölçen,
+   her seferinde farklı tipte bir soru. Cevabını yazarsın, model puanlar ve
+   düzeltir.
+4. Puan bir sonraki aralığı belirler: bilemedin → başa döner, kolay geldi →
+   aralık uzar.
+
+Amaç kelimeyi tam unutmadan hemen önce tekrar getirmek.
+
 ## Hafıza — "ikinci beyin"
 
 **Hafıza** sekmesi sistemin senin hakkında ne bildiğini gösterir. Üç şey
@@ -144,11 +160,14 @@ components/
   dictionary.tsx        sekmeler, dil seçimi, kelime defteri
   markdown.tsx          model çıktısının markdown olarak çizimi
   chat.tsx              sohbet akışı, adım düğmeleri, durdurma
+  study-panel.tsx       günlük hedef ve tekrar oturumu
   memory-panel.tsx      sistemin senin hakkında bildikleri
   settings-panel.tsx    anahtar girişi ve model seçimi
   nebula-background.tsx cihaza göre parçacık sayısı seçer, SSR dışı yükler
   ui/                   shadcn bileşenleri + quantum-nebula.tsx + ai-input.tsx
 lib/
+  srs.ts                aralıklı tekrar zamanlaması (SM-2)
+  study.ts              soru üretme, cevap değerlendirme, yeni kelime önerme
   typewriter.ts         akan metnin zamana bağlı ortaya çıkışı
   dictionary.ts         diller
   providers.ts          sağlayıcı tanımları (adres, modeller, protokol)

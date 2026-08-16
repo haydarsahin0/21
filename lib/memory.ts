@@ -3,6 +3,7 @@
 import Dexie, { type Table } from "dexie";
 
 import type { LanguageCode } from "./dictionary";
+import { INITIAL_SRS, type Grade, type SrsState, schedule } from "./srs";
 
 /**
  * "Ikinci beyin" katmani.
@@ -37,13 +38,23 @@ export interface StoredMessage {
   word: string | null;
 }
 
-export interface WordStat {
+export interface WordStat extends SrsState {
   key: string; // `${language}:${word}`
   word: string;
   language: LanguageCode;
   count: number;
   firstSeen: number;
   lastSeen: number;
+  /** Kelimenin kisa Turkce karsiligi — tekrar kartinda gosteriliyor. */
+  gloss: string;
+  /** Ilk kez ogrenilen gun (YYYY-MM-DD) — gunluk hedefi saymak icin. */
+  learnedOn: string;
+}
+
+/** Yerel gune gore YYYY-MM-DD. Gunluk hedef bu anahtarla sayiliyor. */
+export function dayKey(ts = Date.now()): string {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 export interface Fact {
@@ -66,6 +77,26 @@ class BrainDb extends Dexie {
       words: "key, language, count, lastSeen",
       facts: "++id, kind, language, ts",
     });
+
+    // v2: araliklio tekrar alanlari. Once eklenmis kelimeler "yeni" sayilip
+    // hemen tekrara giriyor, boylece eski kayitlar da sisteme dahil oluyor.
+    this.version(2)
+      .stores({
+        messages: "++id, ts, language, word",
+        words: "key, language, count, lastSeen, due, status",
+        facts: "++id, kind, language, ts",
+      })
+      .upgrade((tx) =>
+        tx
+          .table<WordStat>("words")
+          .toCollection()
+          .modify((entry) => {
+            Object.assign(entry, INITIAL_SRS);
+            entry.due = Date.now();
+            entry.gloss = entry.gloss ?? "";
+            entry.learnedOn = entry.learnedOn ?? dayKey(entry.firstSeen);
+          }),
+      );
   }
 }
 
@@ -126,6 +157,10 @@ export async function bumpWord(
           count: 1,
           firstSeen: now,
           lastSeen: now,
+          gloss: "",
+          learnedOn: dayKey(now),
+          ...INITIAL_SRS,
+          due: now,
         });
       }
     });
@@ -181,6 +216,84 @@ export async function listTopWords(
   return rows
     .sort((a, b) => b.count - a.count || b.lastSeen - a.lastSeen)
     .slice(0, limit);
+}
+
+/** Zamani gelmis kelimeler, en cok gecikmis once. */
+export async function dueWords(
+  language: LanguageCode,
+  limit = 30,
+): Promise<WordStat[]> {
+  const database = getDb();
+  if (!database) return [];
+  const now = Date.now();
+  const rows = await database.words.where({ language }).toArray();
+  return rows
+    .filter((entry) => entry.due <= now)
+    .sort((a, b) => a.due - b.due)
+    .slice(0, limit);
+}
+
+/** Bugun ilk kez ogrenilen kelime sayisi — gunluk hedef icin. */
+export async function learnedToday(language: LanguageCode): Promise<number> {
+  const database = getDb();
+  if (!database) return 0;
+  const today = dayKey();
+  const rows = await database.words.where({ language }).toArray();
+  return rows.filter((entry) => entry.learnedOn === today).length;
+}
+
+/** Sistemin daha once gordugu butun kelimeler — yeni kelime onerirken tekrar
+ *  onermemek icin modele veriliyor. */
+export async function knownWords(language: LanguageCode): Promise<string[]> {
+  const database = getDb();
+  if (!database) return [];
+  const rows = await database.words.where({ language }).toArray();
+  return rows.map((entry) => entry.word);
+}
+
+/** Bir kelimeyi hafizaya ekler (yeni ogrenilenler icin). */
+export async function addWord(
+  word: string,
+  language: LanguageCode,
+  gloss: string,
+): Promise<void> {
+  const database = getDb();
+  if (!database) return;
+  const key = `${language}:${word}`;
+  const existing = await database.words.get(key);
+  if (existing) {
+    if (gloss && !existing.gloss) {
+      await database.words.put({ ...existing, gloss });
+    }
+    return;
+  }
+  const now = Date.now();
+  await database.words.put({
+    key,
+    word,
+    language,
+    count: 1,
+    firstSeen: now,
+    lastSeen: now,
+    gloss,
+    learnedOn: dayKey(now),
+    ...INITIAL_SRS,
+    due: now,
+  });
+}
+
+/** Tekrar sonucunu isle ve bir sonraki tarihi hesapla. */
+export async function gradeWord(
+  key: string,
+  grade: Grade,
+): Promise<WordStat | null> {
+  const database = getDb();
+  if (!database) return null;
+  const entry = await database.words.get(key);
+  if (!entry) return null;
+  const next = { ...entry, ...schedule(entry, grade), lastSeen: Date.now() };
+  await database.words.put(next);
+  return next;
 }
 
 export async function countMessages(language: LanguageCode): Promise<number> {
