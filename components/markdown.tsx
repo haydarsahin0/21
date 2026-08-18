@@ -69,10 +69,28 @@ const components: Components = {
   h6: ({ children }) => <p className="mt-3 font-semibold">{children}</p>,
 };
 
+/**
+ * Satir ici surum: paragraf sarmalayicisi yok.
+ *
+ * Kisa notlar (bir liste ogesinin yaninda, bir alt yazida) markdown olarak
+ * cizilmeli — yoksa modelin kalinlastirmak icin koydugu ** isaretleri ekranda
+ * oldugu gibi gorunuyor. Ama blok paragraf araya bosluk sokuyor, o yuzden
+ * burada p etiketi yerine dogrudan icerik donuyor.
+ */
+const inlineComponents: Components = {
+  ...components,
+  p: ({ children }) => <>{children}</>,
+};
+
 function MarkdownImpl({ children }: { children: string }) {
   return <ReactMarkdown components={components}>{children}</ReactMarkdown>;
+}
+
+function InlineMarkdownImpl({ children }: { children: string }) {
+  return <ReactMarkdown components={inlineComponents}>{children}</ReactMarkdown>;
 }
 
 // Akis sirasinda ust bilesen sik render oluyor; metin degismedikce yeniden
 // ayristirmaya gerek yok.
 export const Markdown = memo(MarkdownImpl);
+export const InlineMarkdown = memo(InlineMarkdownImpl);

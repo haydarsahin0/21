@@ -3,7 +3,8 @@
 import { useCallback, useRef, useState } from "react";
 import { Loader2, PenLine, Sparkles } from "lucide-react";
 
-import { Markdown } from "@/components/markdown";
+import { InlineMarkdown, Markdown } from "@/components/markdown";
+import { TranslatePanel } from "@/components/translate-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,6 +26,41 @@ function scoreTone(score: number): string {
   return "text-destructive";
 }
 
+type Mode = "review" | "translate";
+
+/** Yazma sekmesinin iki isi: yazdigini duzeltmek ve nasil soylendigini sormak. */
+function ModeSwitch({
+  mode,
+  onChange,
+}: {
+  mode: Mode;
+  onChange: (next: Mode) => void;
+}) {
+  return (
+    <div className="bg-muted/60 inline-flex rounded-lg p-[3px] text-sm">
+      {(
+        [
+          { value: "review" as const, label: "Yazdığımı düzelt" },
+          { value: "translate" as const, label: "Nasıl söylenir?" },
+        ] as const
+      ).map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          onClick={() => onChange(option.value)}
+          className={`rounded-md px-3 py-1.5 transition-colors ${
+            mode === option.value
+              ? "bg-background/80 text-foreground shadow-sm"
+              : "text-muted-foreground"
+          }`}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function WritingPanel({
   language,
   settings,
@@ -32,6 +68,7 @@ export function WritingPanel({
   language: LanguageCode;
   settings: storage.Settings;
 }) {
+  const [mode, setMode] = useState<Mode>("review");
   const [text, setText] = useState("");
   const [review, setReview] = useState<WritingReview | null>(null);
   const [busy, setBusy] = useState(false);
@@ -82,8 +119,19 @@ export function WritingPanel({
     }
   }, [busy, language, settings, text]);
 
+  if (mode === "translate") {
+    return (
+      <div className="space-y-5">
+        <ModeSwitch mode={mode} onChange={setMode} />
+        <TranslatePanel language={language} settings={settings} />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5">
+      <ModeSwitch mode={mode} onChange={setMode} />
+
       <Card>
         <CardContent className="space-y-3">
           <h2 className="flex items-center gap-2 font-semibold">
@@ -165,9 +213,9 @@ export function WritingPanel({
                         </Badge>
                       </div>
                       {item.why ? (
-                        <p className="text-muted-foreground text-sm leading-relaxed">
-                          {item.why}
-                        </p>
+                        <div className="text-muted-foreground text-sm leading-relaxed">
+                          <InlineMarkdown>{item.why}</InlineMarkdown>
+                        </div>
                       ) : null}
                     </CardContent>
                   </Card>

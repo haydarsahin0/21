@@ -219,7 +219,11 @@ eklentisi ve bu proje Turbopack ile derleniyor. Sayfa açılışında önce ağ
 deneniyor (hep güncel sürüm), olmazsa önbellekteki kabuk veriliyor. Model
 istekleri hiç önbelleklenmiyor.
 
-## Yazma — serbest metin değerlendirme
+## Yazma
+
+İki mod var; sekmenin üstündeki anahtarla geçiliyor.
+
+### Yazdığımı düzelt
 
 Kendi yazdığın bir metni yapıştır, **Puanla ve düzelt** de:
 
@@ -231,6 +235,27 @@ Kendi yazdığın bir metni yapıştır, **Puanla ve düzelt** de:
 
 Aynı hata tipi bir metinde iki kez geçerse hafızaya not düşülür, sonraki
 sohbetler ve tekrar soruları o noktaya dokunur.
+
+### Nasıl söylenir? — çift yönlü çeviri
+
+Sözlük çevirisi değil: **bir anadili konuşanı bunu nasıl söylerdi.** Türkçe
+yazarsan Almancasını, Almanca yazarsan Türkçesini veriyor. Yön otomatik
+algılanıyor (Türkçeye özgü `ı ğ ş`, Almancaya özgü `ß` ve sık kullanılan
+kelimeler); yanılırsa üstteki anahtarla sabitleyebilirsin.
+
+Cevap dört parça:
+
+| Bölüm | Ne veriyor |
+|---|---|
+| **Bir anadili konuşanı böyle der** | En doğal karşılık + neden böyle söylendiği |
+| **Kelimesi kelimesine** | Birebir çeviri, doğal hâlinden farklıysa — üstü çizili, "bunu kullanma" |
+| **Başka türlü de söyleyebilirsin** | Aynı anlamın 2–3 başka söylenişi, her biri ayrı tonda (günlük / resmî / yazı dili / kısa / kibar) |
+| **Kelime yerine ne kullanabilirsin** | Cümledeki önemli kelimeler ve eş anlamlıları, aralarındaki nüansla |
+
+Almanca çıktının yanında **Dinle** düğmesi var. Her satır tek dokunuşla
+kopyalanabiliyor.
+
+Puanlama ve düzeltme modu bundan tamamen ayrı; ona dokunulmadı.
 
 ## Hafıza — "ikinci beyin"
 
@@ -301,6 +326,7 @@ components/
   study-panel.tsx       günlük hedef ve tekrar oturumu
   writing-panel.tsx     yazdığın metnin puanlanması ve düzeltilmesi
   screening-panel.tsx   kelime taraması: kart destesi, savurma, kontrol soruları
+  translate-panel.tsx   çift yönlü çeviri: doğal karşılık, varyantlar, eş anlamlılar
   deck-manager.tsx      çalışma destesini görme, arama, kelime çıkarma
   memory-panel.tsx      sistemin senin hakkında bildikleri
   tuning-card.tsx       zamanlamanın kendini ölçmesi ve ayarlanması
@@ -317,6 +343,7 @@ lib/
   speak.ts              telaffuz (tarayıcının speechSynthesis'i)
   study.ts              soru üretme, cevap değerlendirme, kelime açma, öneri
   writing.ts            metin puanlama, hata çıkarma, hata tipi notları
+  translate.ts          çift yönlü çeviri, yön algılama, alternatif üretme
   typewriter.ts         akan metnin zamana bağlı ortaya çıkışı
   dictionary.ts         diller
   providers.ts          sağlayıcı tanımları (adres, modeller, protokol)
