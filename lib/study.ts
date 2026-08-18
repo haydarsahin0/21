@@ -92,6 +92,46 @@ Regeln:
   return ask(call, [{ role: "user", text: prompt }], memory);
 }
 
+/**
+ * Tek bir kelimeyi tanitir: anlam, kullanim, ornek cumle.
+ *
+ * makeQuestion'daki ogretme koluyla ayni ise yariyor ama desteye girmemis,
+ * elimizde yalniz yazimi ve dilbilgisi bilgisi olan bir kelime icin. Tarama
+ * ekrani bunu kullaniyor: "bilmiyorum" dedigin kart, kisa bir Turkce
+ * karsilikla yetinmeyip kelimeyi aciyor.
+ */
+export async function explainWord(
+  call: StudyCall,
+  word: string,
+  hint?: { article?: string; plural?: string; category?: string },
+): Promise<string> {
+  const native = LANGUAGES[call.language].native;
+  const headword = hint?.article ? `${hint.article} ${word}` : word;
+
+  const facts = [
+    hint?.article ? `Artikel: ${hint.article}` : "",
+    hint?.plural ? `Plural: ${hint.plural}` : "",
+    hint?.category ? `Wortart: ${hint.category}` : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  const prompt = `Erklär mir das Wort **${headword}**.${
+    facts ? `\n\n(${facts})` : ""
+  }
+
+- Zuerst das Wort **fett** und daneben die türkische Bedeutung auf Türkisch.
+- Dann auf einfachem ${native} (Niveau ${call.level}): Was bedeutet es genau?
+  In welcher Situation benutzt man es?
+- Dann ZWEI Beispielsätze als Liste ("- " am Zeilenanfang), das Wort **fett**.
+- Wenn es ein nahes Wort gibt, das man leicht verwechselt: ein kurzer Satz zum
+  Unterschied.
+- Stell KEINE Frage. Erklär nur. Halt dich kurz — höchstens acht Zeilen.`;
+
+  const memory = await buildMemoryBlock(call.language, word);
+  return ask(call, [{ role: "user", text: prompt }], memory);
+}
+
 // --- Cevap degerlendirme ----------------------------------------------------
 
 export interface Verdict {

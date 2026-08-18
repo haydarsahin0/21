@@ -38,6 +38,12 @@ export class Typewriter {
   private finished = false;
   private resolveFinish: ((text: string) => void) | null = null;
   private fallback: ReturnType<typeof setTimeout> | null = null;
+  /**
+   * Iptal edildikten sonra hicbir sey yazilmamali. Akis kapanirken son parca
+   * ya da gec cagrilan bir finish(), iptal edilmis yaziciyi yeniden
+   * calistirip temizlenmis metni ekrana geri koyabiliyordu.
+   */
+  private cancelled = false;
   private readonly instant: boolean;
 
   constructor(private readonly onUpdate: (text: string) => void) {
@@ -46,6 +52,7 @@ export class Typewriter {
 
   /** Modelden gelen yeni parca. */
   push(chunk: string): void {
+    if (this.cancelled) return;
     this.target += chunk;
     if (this.instant) {
       this.shownLength = this.target.length;
@@ -60,6 +67,7 @@ export class Typewriter {
    * bir anda patlamak yerine akarak biter.
    */
   finish(): Promise<string> {
+    if (this.cancelled) return Promise.resolve(this.target.slice(0, this.shownLength));
     this.finished = true;
 
     if (this.instant || this.shownLength >= this.target.length) {
@@ -76,9 +84,14 @@ export class Typewriter {
 
   /** Kullanici durdurdu: o ana kadar gorunen metni dondurur. */
   cancel(): string {
+    this.cancelled = true;
     this.stopTimers();
+    const resolve = this.resolveFinish;
     this.resolveFinish = null;
-    return this.target.slice(0, this.shownLength);
+    const shown = this.target.slice(0, this.shownLength);
+    // Bekleyen finish() sonsuza kadar asili kalmasin.
+    resolve?.(shown);
+    return shown;
   }
 
   private stopTimers(): void {

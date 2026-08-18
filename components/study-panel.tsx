@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { GraduationCap, Loader2, Plus, Send, Target } from "lucide-react";
 
+import { DeckManager } from "@/components/deck-manager";
 import { Markdown } from "@/components/markdown";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -245,6 +246,8 @@ export function StudyPanel({
           </div>
         </CardContent>
       </Card>
+
+      {phase === "idle" ? <DeckManager language={language} /> : null}
 
       {error ? (
         <p className="border-destructive/60 text-destructive rounded-xl border px-4 py-3 text-sm">

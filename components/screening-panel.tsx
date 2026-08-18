@@ -9,8 +9,18 @@ import {
   useTransform,
   type PanInfo,
 } from "motion/react";
-import { Check, Flame, HelpCircle, Play, Volume2, X } from "lucide-react";
+import {
+  BookOpen,
+  Check,
+  Flame,
+  HelpCircle,
+  Play,
+  RotateCcw,
+  Volume2,
+  X,
+} from "lucide-react";
 
+import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import { LANGUAGES, type LanguageCode } from "@/lib/dictionary";
 import { ensureGlosses } from "@/lib/gloss";
@@ -24,7 +34,8 @@ import {
 import { getProvider } from "@/lib/providers";
 import { canSpeak, speak } from "@/lib/speak";
 import * as storage from "@/lib/storage";
-import type { StudyCall } from "@/lib/study";
+import { explainWord, type StudyCall } from "@/lib/study";
+import { Typewriter } from "@/lib/typewriter";
 import {
   bandLabel,
   displayWord,
@@ -50,6 +61,55 @@ const CATEGORY_TONE: Record<string, string> = {
   sıfat: "text-amber-300 border-amber-400/30 bg-amber-400/10",
   zarf: "text-emerald-300 border-emerald-400/30 bg-emerald-400/10",
 };
+
+/**
+ * Kelimenin acilmis hali. Metin akarken yaziliyor; hata olursa tekrar deneme
+ * dugmesi cikiyor — kart yine de gecilebiliyor, aciklama zorunlu degil.
+ */
+function WordDetail({
+  text,
+  busy,
+  error,
+  onRetry,
+}: {
+  text: string;
+  busy: boolean;
+  error: string;
+  onRetry: () => void;
+}) {
+  if (error) {
+    return (
+      <div className="border-destructive/40 space-y-2 rounded-xl border px-4 py-3">
+        <p className="text-destructive text-xs leading-relaxed">{error}</p>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 text-xs"
+          onClick={onRetry}
+        >
+          <RotateCcw className="size-3.5" />
+          Tekrar dene
+        </Button>
+      </div>
+    );
+  }
+
+  if (!text && !busy) return null;
+
+  return (
+    <div className="border-border/60 bg-background/30 rounded-xl border px-4 py-3 text-sm leading-relaxed">
+      {text ? (
+        <div className={busy ? "chat-stream" : undefined}>
+          <Markdown>{text}</Markdown>
+        </div>
+      ) : (
+        <span className="thinking-dots text-muted-foreground text-xs">
+          kelime açılıyor
+        </span>
+      )}
+    </div>
+  );
+}
 
 function randomBetween([min, max]: readonly [number, number]): number {
   return min + Math.floor(Math.random() * (max - min + 1));
@@ -88,8 +148,14 @@ export function ScreeningPanel({
   const [picked, setPicked] = useState<string | null>(null);
   /** Ekrana yukselip kaybolan "+5" balonu. */
   const [pop, setPop] = useState<{ id: number; points: number } | null>(null);
+  /** Kelimenin acilmis hali: anlam, kullanim, ornek cumleler. */
+  const [detail, setDetail] = useState("");
+  const [detailBusy, setDetailBusy] = useState(false);
+  const [detailError, setDetailError] = useState("");
 
   const abortRef = useRef<AbortController | null>(null);
+  const detailAbortRef = useRef<AbortController | null>(null);
+  const typewriterRef = useRef<Typewriter | null>(null);
   const popId = useRef(0);
 
   // Surukleme: karti yatayda cekiyorsun, egilme ve renk ipucu buna bagli.
@@ -128,6 +194,8 @@ export function ScreeningPanel({
     return () => {
       alive = false;
       abortRef.current?.abort();
+      detailAbortRef.current?.abort();
+      typewriterRef.current?.cancel();
     };
   }, [language]);
 
@@ -167,6 +235,49 @@ export function ScreeningPanel({
     [fetchGlosses],
   );
 
+  /**
+   * Kelimeyi acar: anlam, ne zaman kullanildigi, ornek cumleler. Cevap akarken
+   * yaziliyor — Sohbet ve Calis ekranlarindaki ile ayni his.
+   */
+  const explain = useCallback(
+    async (entry: BankWord) => {
+      detailAbortRef.current?.abort();
+      typewriterRef.current?.cancel();
+
+      const controller = new AbortController();
+      detailAbortRef.current = controller;
+      const typewriter = new Typewriter(setDetail);
+      typewriterRef.current = typewriter;
+
+      setDetail("");
+      setDetailError("");
+      setDetailBusy(true);
+
+      try {
+        const text = await explainWord(
+          { ...buildCall(controller.signal), onDelta: (c) => typewriter.push(c) },
+          entry.word,
+          {
+            article: entry.article,
+            plural: entry.plural,
+            category: entry.category,
+          },
+        );
+        if (controller.signal.aborted) return;
+        await typewriter.finish();
+        if (!controller.signal.aborted) setDetail(text);
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          setDetailError(err instanceof Error ? err.message : String(err));
+        }
+      } finally {
+        if (!controller.signal.aborted) setDetailBusy(false);
+        typewriterRef.current = null;
+      }
+    },
+    [buildCall],
+  );
+
   const start = useCallback(async () => {
     if (!bank?.length) return;
     const done = new Set((await listScreened(language)).map((row) => row.word));
@@ -186,6 +297,11 @@ export function ScreeningPanel({
     const next = index + 1;
     setPicked(null);
     setOptions([]);
+    detailAbortRef.current?.abort();
+    typewriterRef.current?.cancel();
+    setDetail("");
+    setDetailError("");
+    setDetailBusy(false);
     x.set(0);
     if (next >= deck.length) {
       setPhase("done");
@@ -253,8 +369,11 @@ export function ScreeningPanel({
       setPhase("reveal");
       // Anlami henuz gelmediyse simdi getir: kart acikken bekletmek yerine.
       if (!glosses.has(current.word)) void fetchGlosses([current]);
+      // Bilmedigin kelime kisa bir karsilikla gecistirilmesin: aciklamasi,
+      // kullanimi ve ornek cumleleri de gelsin.
+      void explain(current);
     },
-    [bump, current, fetchGlosses, glosses, language, phase],
+    [bump, current, explain, fetchGlosses, glosses, language, phase],
   );
 
   const onPick = useCallback(
@@ -268,9 +387,11 @@ export function ScreeningPanel({
         void markScreened(current.word, language, "unknown", true);
         void addWord(current.word, language, glosses.get(current.word) ?? "");
         bump(0, false);
+        // Yanildigin kelime aciklamasiz gecmesin.
+        void explain(current);
       }
     },
-    [bump, current, glosses, language, meaning, picked],
+    [bump, current, explain, glosses, language, meaning, picked],
   );
 
   const onDragEnd = useCallback(
@@ -582,8 +703,29 @@ export function ScreeningPanel({
                       <p className="text-muted-foreground text-xs leading-relaxed">
                         {picked === meaning
                           ? "Doğru — bu kelimeyi biliyorsun."
-                          : "Bu kelime desteye eklendi; Çalış sekmesinde birlikte açacağız."}
+                          : "Bu kelime desteye eklendi."}
                       </p>
+
+                      {/* Yanildiysan kelimeyi burada aciyoruz; dogruysan
+                          istersen sen actiriyorsun. */}
+                      {picked !== meaning || detail || detailBusy ? (
+                        <WordDetail
+                          text={detail}
+                          busy={detailBusy}
+                          error={detailError}
+                          onRetry={() => void explain(current)}
+                        />
+                      ) : (
+                        <Button
+                          variant="outline"
+                          className="h-10 w-full rounded-xl text-xs"
+                          onClick={() => void explain(current)}
+                        >
+                          <BookOpen className="size-3.5" />
+                          Yine de aç
+                        </Button>
+                      )}
+
                       <Button onClick={advance} className="h-11 w-full rounded-xl">
                         Devam
                       </Button>
@@ -608,6 +750,14 @@ export function ScreeningPanel({
                       </p>
                     )}
                   </div>
+
+                  <WordDetail
+                    text={detail}
+                    busy={detailBusy}
+                    error={detailError}
+                    onRetry={() => void explain(current)}
+                  />
+
                   <p className="text-muted-foreground text-xs">
                     Çalışma destene eklendi. Aralıklı tekrarla karşına çıkacak.
                   </p>

@@ -6,8 +6,11 @@ function Card({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card"
+      // glass-card uygulamanin ortak yuzeyi: buzlu cam + maskeli gradyan kenar.
+      // Kart bilesenini de ona bagladik, yoksa ayni ekranda iki farkli kart
+      // dili yan yana duruyordu.
       className={cn(
-        "bg-card/70 text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm backdrop-blur-xl",
+        "glass-card text-card-foreground flex flex-col gap-6 py-6",
         className,
       )}
       {...props}

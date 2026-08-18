@@ -602,6 +602,33 @@ export async function deleteFact(id: number): Promise<void> {
   await getDb()?.facts.delete(id);
 }
 
+/**
+ * Bir kelimeyi calisma destesinden cikarir.
+ *
+ * Tekrar gunlugu duruyor: o tekrarlar gercekten oldu ve zamanlama olcumu
+ * onlara dayaniyor; silmek gecmisi carpitirdi.
+ *
+ * Tarama karari da duruyor ("biliyorum" ya da "bilmiyorum" olarak), boylece
+ * destesinden cikardigin kelime Tarama'da yeniden karsina cikmiyor.
+ */
+export async function removeWord(key: string): Promise<void> {
+  await getDb()?.words.delete(key);
+}
+
+export async function removeWords(keys: string[]): Promise<void> {
+  const database = getDb();
+  if (!database || !keys.length) return;
+  await database.words.bulkDelete(keys);
+}
+
+/** Destedeki butun kelimeler; yonetim ekrani icin. */
+export async function listDeck(language: LanguageCode): Promise<WordStat[]> {
+  const database = getDb();
+  if (!database) return [];
+  const rows = await database.words.where({ language }).toArray();
+  return rows.sort((a, b) => a.due - b.due);
+}
+
 export async function forgetAll(language: LanguageCode): Promise<void> {
   const database = getDb();
   if (!database) return;

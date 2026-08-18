@@ -118,6 +118,16 @@ Günlük hedef: **20 yeni kelime** (Ayarlar'dan değiştirilebilir).
 
 Amaç kelimeyi tam unutmadan hemen önce tekrar getirmek.
 
+### Desteni yönetme
+
+**Destendeki kelimeler** başlığı destenin tamamını açıyor: her kelimenin
+karşılığı, durumu (yeni / öğreniliyor / tekrarda), bir sonraki tekrar zamanı ve
+şu an hafızanda kalma ihtimali. Arayabilir, tek tek ya da toplu seçip
+çıkarabilirsin.
+
+Çıkardığın kelime tekrar sırasına bir daha girmez ve Tarama'da da karşına
+çıkmaz. Tekrar geçmişi silinmiyor — zamanlama ölçümü ona dayanıyor.
+
 ### Zamanlama kendini ölçüyor
 
 Her tekrar bir günlüğe yazılıyor: hangi kelime, aradan kaç gün geçti, sistem ne
@@ -149,11 +159,16 @@ bilmiyorsun. Düğmeler de duruyor.
 |---|---|
 | **Biliyorum** (sağa) | Kelime bir daha karşına çıkmaz, +1 puan |
 | **Emin değilim** | Çalışma destene girer, +2 puan |
-| **Bilmiyorum** (sola) | Anlamı gösterilir, çalışma destene girer, +2 puan |
+| **Bilmiyorum** (sola) | Kelime açılır, çalışma destene girer, +2 puan |
+
+Bilmediğin kelime kısa bir karşılıkla geçiştirilmiyor: Sohbet ve Çalış'taki
+gibi **açılıyor** — Türkçe karşılığı, ne anlama geldiği, hangi durumda
+kullanıldığı, iki örnek cümle ve karıştırılan yakın bir kelime varsa farkı.
+Metin akarak yazılıyor; beklemeden **Devam**'a basabilirsin.
 
 Arada bir **kontrol sorusu** geliyor: "biliyorum" dediğin bir kelimenin anlamını
 dört şık arasından seçiyorsun. Bilirsen +5; bilemezsen kelime sessizce desteye
-düşüyor. Böylece listeyi hızlı geçmek işe yaramıyor.
+düşüyor ve orada da açılıyor. Böylece listeyi hızlı geçmek işe yaramıyor.
 
 Puan, seri ve tarama yüzdesi ekranda. Kelimenin telaffuzu hoparlör düğmesinde
 (tarayıcının kendi ses motoru — bedava, internetsiz, token harcamaz).
@@ -286,6 +301,7 @@ components/
   study-panel.tsx       günlük hedef ve tekrar oturumu
   writing-panel.tsx     yazdığın metnin puanlanması ve düzeltilmesi
   screening-panel.tsx   kelime taraması: kart destesi, savurma, kontrol soruları
+  deck-manager.tsx      çalışma destesini görme, arama, kelime çıkarma
   memory-panel.tsx      sistemin senin hakkında bildikleri
   tuning-card.tsx       zamanlamanın kendini ölçmesi ve ayarlanması
   service-worker.tsx    sw.js kaydı (çevrimdışı açılış)
@@ -299,7 +315,7 @@ lib/
   wordbank-de.json      3.852 kelimelik ileri seviye liste (üretilmiş dosya)
   gloss.ts              banka kelimelerinin Türkçe karşılığı (toplu + önbellekli)
   speak.ts              telaffuz (tarayıcının speechSynthesis'i)
-  study.ts              soru üretme, cevap değerlendirme, yeni kelime önerme
+  study.ts              soru üretme, cevap değerlendirme, kelime açma, öneri
   writing.ts            metin puanlama, hata çıkarma, hata tipi notları
   typewriter.ts         akan metnin zamana bağlı ortaya çıkışı
   dictionary.ts         diller
