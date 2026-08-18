@@ -86,8 +86,10 @@ export function Dictionary() {
 
   return (
     <Tabs defaultValue="study" className="gap-6">
+      {/* Alti sekme dar telefonda sigmiyor: cubuk yatayda kayabiliyor,
+          kaydirma cubugu gizli. */}
       <div className="flex flex-wrap items-center justify-center gap-2">
-        <TabsList>
+        <TabsList className="no-scrollbar fade-right max-w-full justify-start overflow-x-auto">
           <TabsTrigger value="study">Çalış</TabsTrigger>
           <TabsTrigger value="screening">Tarama</TabsTrigger>
           <TabsTrigger value="chat">Sohbet</TabsTrigger>

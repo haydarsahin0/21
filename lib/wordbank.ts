@@ -18,29 +18,34 @@ interface RawEntry {
   a?: string;
   p?: string;
   c: string;
-  l: string;
-  e: string;
+  z: number;
 }
 
 export interface BankWord {
   word: string;
   /** Isimlerde artikel — Almanca'da kelimenin yarisi bu. */
   article?: string;
-  /** Cogul eki, orn. "-en". */
+  /** Cogul bicimi. */
   plural?: string;
-  /** isim / fiil / sıfat / zarf / diğer */
+  /** isim / fiil / sıfat / zarf */
   category: string;
-  /** Ham seviye etiketi: "B1" ya da "B2+". */
-  level: string;
-  /** Ingilizce karsilik — Turkcesi gelene kadar ipucu olarak duruyor. */
-  english: string;
+  /** Genel kullanim sikligi (zipf, ~2.9-4.4). */
+  zipf: number;
   /** Siklik sirasi (0 = en sik). */
   rank: number;
 }
 
-/** Ekranda gosterilen seviye adi; kaynaktaki "B2+" bandi B2 ve ustunu kapsiyor. */
-export function levelLabel(level: string): string {
-  return level === "B2+" ? "B2/C1" : level;
+/**
+ * Seviye yerine siklik bandi gosteriyoruz. Sebep: liste zaten temel bandin
+ * (Goethe 5000) ustunde duruyor ve C1 icin kapali bir resmi kelime listesi
+ * yok — "C1" etiketi uydurma olurdu. Kelimenin ne siklikta karsina cikacagi
+ * ise olculebilir bir sey.
+ */
+export function bandLabel(zipf: number): string {
+  if (zipf >= 4) return "çok yaygın";
+  if (zipf >= 3.5) return "yaygın";
+  if (zipf >= 3.2) return "orta";
+  return "seyrek";
 }
 
 /** Isimler artikelleriyle birlikte ogrenilmeli. */
@@ -63,12 +68,8 @@ export async function loadBank(language: LanguageCode): Promise<BankWord[]> {
     ...(entry.a ? { article: entry.a } : {}),
     ...(entry.p ? { plural: entry.p } : {}),
     category: entry.c,
-    level: entry.l,
-    english: entry.e,
+    zipf: entry.z,
     rank: index,
   }));
   return cache;
 }
-
-export const BANK_LEVELS = ["B1", "B2+"] as const;
-export type BankLevel = (typeof BANK_LEVELS)[number];

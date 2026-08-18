@@ -86,6 +86,77 @@
   }
 }
 
+/* Cam kart: uygulamanin tasarim dili.
+   Arka plandaki bulutsuyu buzlu camdan gosteren, kenarinda ustten alta sonen
+   ince bir isik seridi olan yuzey. Kenar cizgisi border yerine maskeli bir
+   gradyan: duz bir cizgiden daha yumusak duruyor ve karti zeminden ayiriyor.
+
+   @layer components icinde: katmansiz CSS, Tailwind'in katmanli yardimcilarini
+   ezer. Kural katmanin disindayken buradaki `position: relative`, kartin
+   uzerine yazilan `absolute` yardimcisini gecersiz kiliyordu ve ust uste
+   binmesi gereken kart destesi alt alta diziliyordu. */
+@layer components {
+  /* Yatayda kayan seritlerde (sekme cubugu) cubugu gizle: mobilde zaten
+     parmakla kaydiriliyor, masaustunde de gorsel gurultu. */
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Kayan seridin sag ucu yumusakca sonsun: kesilen sekme "bozuk" degil
+     "devami var" gibi okunsun. Serit tamamen sigdiginda maske bir sey
+     yapmiyor. */
+  .fade-right {
+    -webkit-mask-image: linear-gradient(
+      to right,
+      #000 calc(100% - 1.5rem),
+      transparent
+    );
+    mask-image: linear-gradient(
+      to right,
+      #000 calc(100% - 1.5rem),
+      transparent
+    );
+  }
+
+  .glass-card {
+    position: relative;
+    border-radius: 1.25rem;
+    background: color-mix(in oklab, var(--card) 72%, transparent);
+    backdrop-filter: blur(20px) saturate(1.2);
+    -webkit-backdrop-filter: blur(20px) saturate(1.2);
+    box-shadow:
+      0 1px 0 0 color-mix(in oklab, white 6%, transparent) inset,
+      0 18px 40px -24px rgb(0 0 0 / 0.7);
+  }
+
+  .glass-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      160deg,
+      color-mix(in oklab, var(--primary) 45%, transparent),
+      color-mix(in oklab, var(--border) 80%, transparent) 35%,
+      transparent 70%
+    );
+    /* Yalniz kenar kalsin: ic bolgeyi maskeyle kesiyoruz. */
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+}
+
 /* ColorOrb'un donen konik gradyani bu ozel ozelligin kayitli olmasina bagli:
    yalniz @property ile tanimlandiginda <angle> olarak enterpole edilir, aksi
    halde tarayici onu duz metin sayar ve animasyon hic oynamaz. styled-jsx

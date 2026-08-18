@@ -56,11 +56,14 @@ export async function ensureGlosses(
   const missing = entries.filter((entry) => !cached.has(entry.word));
   if (!missing.length || !call.apiKey) return cached;
 
-  // Ingilizce karsiligi da veriyoruz: model hangi anlami kastettigimizi
-  // bilsin, es sesli kelimelerde yanlis tarafa sapmasin.
+  // Artikel ve tur bilgisini de veriyoruz: es sesli kelimelerde ("der Band" /
+  // "das Band") model dogru anlami secsin.
   const list = missing
     .slice(0, BATCH)
-    .map((entry) => `${entry.word} (${entry.english})`)
+    .map((entry) => {
+      const head = entry.article ? `${entry.article} ${entry.word}` : entry.word;
+      return `${entry.word} — ${head} (${entry.category})`;
+    })
     .join("\n");
 
   const prompt = `Gib für jedes Wort die türkische Bedeutung.
@@ -71,9 +74,10 @@ Antworte NUR mit JSON, ohne Erklärung:
 [{"word":"...","tr":"..."}]
 
 Regeln:
+- "word" ist genau das Wort vor dem Gedankenstrich.
 - "tr" ist kurz: ein bis drei türkische Wörter, keine Sätze.
-- Bei Nomen ohne Artikel schreiben.
-- Nimm die Bedeutung, die zur englischen Angabe in Klammern passt.`;
+- Bei Nomen den türkischen Begriff ohne Artikel schreiben.
+- Nimm die Bedeutung, die zum angegebenen Artikel und zur Wortart passt.`;
 
   try {
     let output = "";

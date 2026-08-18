@@ -139,36 +139,58 @@ edilmesini gerektiriyor — GitHub Pages bu başlıkları göndermiyor. Bu yüzd
 tekrar günlüğü, resmî optimizer'ın okuduğu CSV olarak indirilebiliyor
 (`card_id,review_time,review_rating`).
 
-## Tarama — B1–C1 kelime avı
+## Tarama — kelime avı
 
-3.737 kelimelik bir liste, kullanım sıklığına göre sıralı. Kart kart geçiyorsun:
+Temel 5.000 kelimenin **ötesindeki** 3.852 kelime, kullanım sıklığına göre
+sıralı. Kart kart geçiyorsun; kartı sağa savurursan biliyorsun, sola savurursan
+bilmiyorsun. Düğmeler de duruyor.
 
-| Düğme | Ne olur |
+| Karar | Ne olur |
 |---|---|
-| **Biliyorum** | Kelime bir daha karşına çıkmaz, +1 puan |
+| **Biliyorum** (sağa) | Kelime bir daha karşına çıkmaz, +1 puan |
 | **Emin değilim** | Çalışma destene girer, +2 puan |
-| **Bilmiyorum** | Anlamı gösterilir, çalışma destene girer, +2 puan |
+| **Bilmiyorum** (sola) | Anlamı gösterilir, çalışma destene girer, +2 puan |
 
 Arada bir **kontrol sorusu** geliyor: "biliyorum" dediğin bir kelimenin anlamını
 dört şık arasından seçiyorsun. Bilirsen +5; bilemezsen kelime sessizce desteye
-düşüyor. Böylece listeyi hızlı geçmek işe yaramıyor — gerçekten bildiklerin
-eleniyor.
+düşüyor. Böylece listeyi hızlı geçmek işe yaramıyor.
 
-Puan, seri (üst üste doğru) ve tarama yüzdesi ekranda duruyor. Kelimenin
-telaffuzu hoparlör düğmesinde (tarayıcının kendi ses motoru — bedava,
-internetsiz, token harcamaz).
+Puan, seri ve tarama yüzdesi ekranda. Kelimenin telaffuzu hoparlör düğmesinde
+(tarayıcının kendi ses motoru — bedava, internetsiz, token harcamaz).
 
-**Veri:** [voothi/20260716201616-german-5000](https://github.com/voothi/20260716201616-german-5000)
-(MIT) — Goethe Institut'un 5000 kelimelik listesi, sıklığa göre sıralı ve CEFR
-etiketli. Bunun B1 (1.810) ve B2+ (1.927) bantlarını alıyoruz; A1/A2 zaten
-biliniyor sayılıyor. **C1 için kapalı bir resmî kelime listesi yok** — B2+ bandı
-pratikte tavan. Ekranda "B2/C1" diye gösteriliyor.
+### Liste nasıl kuruldu
 
-İsimler artikelleriyle ve çoğul ekleriyle geliyor. Türkçe karşılıklar modelden
+Hazır bir C1 listesi yok: **CEFR C1 için kapalı bir kelime listesi yayımlanmıyor.**
+A1–B1 için Goethe'nin listeleri var, ötesi için yok. O yüzden liste dört açık
+kaynaktan inşa ediliyor (`scripts/build-wordbank.mjs`):
+
+| Kaynak | Ne veriyor | Lisans |
+|---|---|---|
+| [UD German-HDT + GSD](https://github.com/UniversalDependencies/UD_German-HDT) | İnsan eliyle etiketlenmiş lemma ve sözcük türü | CC BY-SA 4.0 |
+| [wordfreq](https://github.com/rspeer/wordfreq) | Wikipedia + altyazı + haber + kitap + web karışımı sıklık — sıralama buna göre | MIT |
+| [german-nouns](https://github.com/gambolputty/german-nouns) | ~100.000 ismin cinsiyeti, çoğulu; özel ad/kısaltma ayıklama | MIT |
+| [igerman98](https://github.com/wooorm/dictionaries) | Modern yazım denetimi: `bewußt`, `ausserdem` gibi eski/İsviçre biçimlerini eler | GPL/LGPL/MPL |
+
+Kalite büyük ölçüde tek bir kurala dayanıyor: bir kelime yalnız **sözlük
+biçimiyle** metinde geçtiğinde sayılıyor (yüzey biçimi lemmaya eşit, morfoloji
+sütunu o türün citation biçimini gösteriyor). Bu kural olmadan listeye
+`verbunden` (verbinden'in sıfat-fiili) ve `länger` (lang'ın karşılaştırması)
+gibi çekimli biçimler kart olarak giriyordu.
+
+Üstüne: Goethe 5000'deki her şey ve ondan türemiş biçimler ("klein" biliniyorsa
+"Kleine" de) çıkarılıyor, İngilizce alıntılar Almanca/İngilizce sıklık farkıyla
+eleniyor, ve sıklık bandı 2.9–4.4 zipf arasına kırpılıyor — altı fazla nadir,
+üstü C1'deki birine yeni gelmeyecek kadar yaygın.
+
+Seviye etiketi yerine **sıklık bandı** (çok yaygın / yaygın / orta / seyrek)
+gösteriliyor: liste zaten temel bandın üstünde ve uydurma bir "C1" etiketi
+takmaktansa ölçülebilir olanı yazmak daha dürüst.
+
+İsimler artikelleriyle ve çoğullarıyla geliyor. Türkçe karşılıklar modelden
 15'erlik gruplar hâlinde bir kez alınıp cihazda saklanıyor; ikinci kez token
-harcanmıyor. Model erişilemezse kartın arkasında İngilizce karşılık kalıyor.
+harcanmıyor.
 
-Listeyi yeniden üretmek için: `npm run wordbank`
+Listeyi yeniden üretmek için: `pip install wordfreq && npm run wordbank`
 
 ## Ana ekrana kurma (PWA)
 
@@ -263,7 +285,7 @@ components/
   chat.tsx              sohbet akışı, adım düğmeleri, durdurma
   study-panel.tsx       günlük hedef ve tekrar oturumu
   writing-panel.tsx     yazdığın metnin puanlanması ve düzeltilmesi
-  screening-panel.tsx   B1-C1 kelime taraması, kontrol soruları, puan/seri
+  screening-panel.tsx   kelime taraması: kart destesi, savurma, kontrol soruları
   memory-panel.tsx      sistemin senin hakkında bildikleri
   tuning-card.tsx       zamanlamanın kendini ölçmesi ve ayarlanması
   service-worker.tsx    sw.js kaydı (çevrimdışı açılış)
@@ -274,7 +296,7 @@ lib/
   srs.ts                aralıklı tekrar zamanlaması (FSRS)
   optimizer.ts          tekrar günlüğünden hatırlama ölçümü + eşik ayarı
   wordbank.ts           kelime bankasının yüklenmesi
-  wordbank-de.json      3.737 kelimelik B1-B2+ listesi (üretilmiş dosya)
+  wordbank-de.json      3.852 kelimelik ileri seviye liste (üretilmiş dosya)
   gloss.ts              banka kelimelerinin Türkçe karşılığı (toplu + önbellekli)
   speak.ts              telaffuz (tarayıcının speechSynthesis'i)
   study.ts              soru üretme, cevap değerlendirme, yeni kelime önerme
@@ -290,7 +312,8 @@ public/
   sw.js                 servis çalışanı (elle yazıldı, Turbopack uyumlu)
   icon-*.png            PWA ikonları
 scripts/
-  build-wordbank.mjs    kelime bankasını kaynaktan üretir (npm run wordbank)
+  build-wordbank.mjs    kelime bankasını dört kaynaktan üretir (npm run wordbank)
+  wordfreq-zipf.py      sıklık değerleri (wordfreq bir Python paketi)
 python-v1/              ilk sürüm (FastAPI + düz HTML). Artık gerekli değil.
 ```
 
