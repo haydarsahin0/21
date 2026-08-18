@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "wordbank": "node scripts/build-wordbank.mjs"
   },
   "dependencies": {
     "@radix-ui/react-select": "^2.3.7",
@@ -24,7 +25,8 @@
     "react-dom": "19.2.8",
     "react-markdown": "^10.1.0",
     "tailwind-merge": "^3.6.0",
-    "three": "^0.185.1"
+    "three": "^0.185.1",
+    "ts-fsrs": "^5.4.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

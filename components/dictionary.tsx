@@ -5,6 +5,7 @@ import { Download, Settings2, Trash2 } from "lucide-react";
 
 import { Chat } from "@/components/chat";
 import { MemoryPanel } from "@/components/memory-panel";
+import { ScreeningPanel } from "@/components/screening-panel";
 import { StudyPanel } from "@/components/study-panel";
 import { WritingPanel } from "@/components/writing-panel";
 import { SettingsPanel } from "@/components/settings-panel";
@@ -19,6 +20,11 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LANGUAGES, isLanguageCode } from "@/lib/dictionary";
+import {
+  currentTuning,
+  serverTuning,
+  subscribeTuning,
+} from "@/lib/optimizer";
 import * as storage from "@/lib/storage";
 
 export function Dictionary() {
@@ -37,6 +43,10 @@ export function Dictionary() {
     storage.getSettingsSnapshot,
     storage.getSettingsServerSnapshot,
   );
+
+  // Olculmus zamanlama ayarini okur ve FSRS'e uygular. Burada duruyor cunku
+  // Hafiza sekmesi hic acilmasa da ayarin gecerli olmasi gerekiyor.
+  useSyncExternalStore(subscribeTuning, currentTuning, serverTuning);
 
   const [showSettings, setShowSettings] = useState(false);
 
@@ -79,6 +89,7 @@ export function Dictionary() {
       <div className="flex flex-wrap items-center justify-center gap-2">
         <TabsList>
           <TabsTrigger value="study">Çalış</TabsTrigger>
+          <TabsTrigger value="screening">Tarama</TabsTrigger>
           <TabsTrigger value="chat">Sohbet</TabsTrigger>
           <TabsTrigger value="writing">Yazma</TabsTrigger>
           <TabsTrigger value="saved">
@@ -177,6 +188,10 @@ export function Dictionary() {
 
       <TabsContent value="study">
         <StudyPanel language={language} settings={settings} />
+      </TabsContent>
+
+      <TabsContent value="screening">
+        <ScreeningPanel language={language} settings={settings} />
       </TabsContent>
 
       <TabsContent value="writing">

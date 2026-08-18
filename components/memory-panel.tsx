@@ -3,6 +3,7 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { Brain, Download, Trash2 } from "lucide-react";
 
+import { TuningCard } from "@/components/tuning-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -112,6 +113,8 @@ export function MemoryPanel({ language }: { language: LanguageCode }) {
           Henüz bir şey öğrenmedim. Birkaç kelime konuşalım, sonra buraya bak.
         </p>
       ) : null}
+
+      <TuningCard language={language} />
 
       {data.facts.length > 0 ? (
         <section className="space-y-2">

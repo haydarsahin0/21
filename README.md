@@ -108,8 +108,8 @@ Günlük hedef: **20 yeni kelime** (Ayarlar'dan değiştirilebilir).
 
 1. **Yeni kelime getir** — model, hafızandaki seviyene ve ilgi alanına göre
    daha önce görmediğin kelimeler önerir, tek tek öğretir.
-2. Öğrenilen kelime tekrar sırasına girer: 1 dk → 10 dk → 1 gün → giderek
-   uzayan aralıklar (SM-2).
+2. Öğrenilen kelime tekrar sırasına girer: 1 dk → 10 dk → 2 gün → 11 gün →
+   46 gün → … ([FSRS](https://github.com/open-spaced-repetition/ts-fsrs)).
 3. Tekrar zamanı gelince model **soru sorar** — ezber değil kullanım ölçen,
    her seferinde farklı tipte bir soru. Cevabını yazarsın, model puanlar ve
    düzeltir.
@@ -117,6 +117,70 @@ Günlük hedef: **20 yeni kelime** (Ayarlar'dan değiştirilebilir).
    aralık uzar.
 
 Amaç kelimeyi tam unutmadan hemen önce tekrar getirmek.
+
+### Zamanlama kendini ölçüyor
+
+Her tekrar bir günlüğe yazılıyor: hangi kelime, aradan kaç gün geçti, sistem ne
+tahmin etmişti, gerçekte ne oldu. **Hafıza** sekmesindeki kart bu ikisini yan
+yana koyuyor:
+
+- gerçekte hatırladığın oran hedefin üstündeyse → aralıklar sana kısa geliyor,
+  boşuna tekrar ediyorsun
+- altındaysa → aralıklar uzun, unutmadan yetişemiyorsun
+
+**Zamanlamayı ayarla** düğmesi FSRS'in hedef eşiğini (`request_retention`) bu
+ölçüme göre kaydırıyor. En az 60 ölçülebilir tekrar gerekiyor; dakikalık öğrenme
+adımları sayılmıyor.
+
+FSRS'in ağırlık dizisini (`w`) baştan eğitmek daha güçlü olurdu ama
+[fsrs-browser](https://github.com/open-spaced-repetition/fsrs-browser)
+SharedArrayBuffer istiyor, o da sayfanın COOP/COEP başlıklarıyla servis
+edilmesini gerektiriyor — GitHub Pages bu başlıkları göndermiyor. Bu yüzden
+tekrar günlüğü, resmî optimizer'ın okuduğu CSV olarak indirilebiliyor
+(`card_id,review_time,review_rating`).
+
+## Tarama — B1–C1 kelime avı
+
+3.737 kelimelik bir liste, kullanım sıklığına göre sıralı. Kart kart geçiyorsun:
+
+| Düğme | Ne olur |
+|---|---|
+| **Biliyorum** | Kelime bir daha karşına çıkmaz, +1 puan |
+| **Emin değilim** | Çalışma destene girer, +2 puan |
+| **Bilmiyorum** | Anlamı gösterilir, çalışma destene girer, +2 puan |
+
+Arada bir **kontrol sorusu** geliyor: "biliyorum" dediğin bir kelimenin anlamını
+dört şık arasından seçiyorsun. Bilirsen +5; bilemezsen kelime sessizce desteye
+düşüyor. Böylece listeyi hızlı geçmek işe yaramıyor — gerçekten bildiklerin
+eleniyor.
+
+Puan, seri (üst üste doğru) ve tarama yüzdesi ekranda duruyor. Kelimenin
+telaffuzu hoparlör düğmesinde (tarayıcının kendi ses motoru — bedava,
+internetsiz, token harcamaz).
+
+**Veri:** [voothi/20260716201616-german-5000](https://github.com/voothi/20260716201616-german-5000)
+(MIT) — Goethe Institut'un 5000 kelimelik listesi, sıklığa göre sıralı ve CEFR
+etiketli. Bunun B1 (1.810) ve B2+ (1.927) bantlarını alıyoruz; A1/A2 zaten
+biliniyor sayılıyor. **C1 için kapalı bir resmî kelime listesi yok** — B2+ bandı
+pratikte tavan. Ekranda "B2/C1" diye gösteriliyor.
+
+İsimler artikelleriyle ve çoğul ekleriyle geliyor. Türkçe karşılıklar modelden
+15'erlik gruplar hâlinde bir kez alınıp cihazda saklanıyor; ikinci kez token
+harcanmıyor. Model erişilemezse kartın arkasında İngilizce karşılık kalıyor.
+
+Listeyi yeniden üretmek için: `npm run wordbank`
+
+## Ana ekrana kurma (PWA)
+
+Site telefonda uygulama gibi kurulabiliyor: tarayıcı menüsünden **Ana ekrana
+ekle**. Kurulduktan sonra adres çubuğu olmadan tam ekran açılıyor ve internet
+yokken de açılıyor — kelime defterin, hafızan ve tarama ilerlemen zaten cihazda
+duruyor. Yalnızca modele soru sormak internet istiyor.
+
+Servis çalışanı (`public/sw.js`) elle yazıldı; `@serwist/next` bir webpack
+eklentisi ve bu proje Turbopack ile derleniyor. Sayfa açılışında önce ağ
+deneniyor (hep güncel sürüm), olmazsa önbellekteki kabuk veriliyor. Model
+istekleri hiç önbelleklenmiyor.
 
 ## Yazma — serbest metin değerlendirme
 
@@ -189,6 +253,7 @@ gerektirmiyor hem de ilk push'ta Pages'i kendiliğinden açıyor.
 ```
 app/
   page.tsx              ana sayfa (bulutsu arka planı + sohbet)
+  manifest.ts           PWA tanımı (basePath'e göre yolları kurar)
   demo/page.tsx         yalnız parçacık sahnesi
   globals.css           tema değişkenleri (shadcn)
   ai-input/page.tsx     yalnız MorphPanel (Ask AI) bileşeni
@@ -198,12 +263,20 @@ components/
   chat.tsx              sohbet akışı, adım düğmeleri, durdurma
   study-panel.tsx       günlük hedef ve tekrar oturumu
   writing-panel.tsx     yazdığın metnin puanlanması ve düzeltilmesi
+  screening-panel.tsx   B1-C1 kelime taraması, kontrol soruları, puan/seri
   memory-panel.tsx      sistemin senin hakkında bildikleri
+  tuning-card.tsx       zamanlamanın kendini ölçmesi ve ayarlanması
+  service-worker.tsx    sw.js kaydı (çevrimdışı açılış)
   settings-panel.tsx    anahtar girişi ve model seçimi
   nebula-background.tsx cihaza göre parçacık sayısı seçer, SSR dışı yükler
   ui/                   shadcn bileşenleri + quantum-nebula.tsx + ai-input.tsx
 lib/
-  srs.ts                aralıklı tekrar zamanlaması (SM-2)
+  srs.ts                aralıklı tekrar zamanlaması (FSRS)
+  optimizer.ts          tekrar günlüğünden hatırlama ölçümü + eşik ayarı
+  wordbank.ts           kelime bankasının yüklenmesi
+  wordbank-de.json      3.737 kelimelik B1-B2+ listesi (üretilmiş dosya)
+  gloss.ts              banka kelimelerinin Türkçe karşılığı (toplu + önbellekli)
+  speak.ts              telaffuz (tarayıcının speechSynthesis'i)
   study.ts              soru üretme, cevap değerlendirme, yeni kelime önerme
   writing.ts            metin puanlama, hata çıkarma, hata tipi notları
   typewriter.ts         akan metnin zamana bağlı ortaya çıkışı
@@ -213,6 +286,11 @@ lib/
   memory.ts             Dexie/IndexedDB: notlar, kelime sayaçları, geçmiş
   profile.ts            konuşmadan profil çıkarımı
   storage.ts            localStorage: anahtarlar, dil, kelime defteri
+public/
+  sw.js                 servis çalışanı (elle yazıldı, Turbopack uyumlu)
+  icon-*.png            PWA ikonları
+scripts/
+  build-wordbank.mjs    kelime bankasını kaynaktan üretir (npm run wordbank)
 python-v1/              ilk sürüm (FastAPI + düz HTML). Artık gerekli değil.
 ```
 

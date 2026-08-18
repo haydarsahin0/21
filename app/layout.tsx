@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
+import { ServiceWorker } from "@/components/service-worker";
+
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -14,6 +16,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#0b1220",
+  // Telefonda ana ekrandan acilinca tam ekran otursun.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -25,6 +29,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
       >
         {children}
+        <ServiceWorker />
       </body>
     </html>
   );

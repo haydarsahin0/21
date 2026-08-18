@@ -3,7 +3,13 @@
 import Dexie, { type Table } from "dexie";
 
 import type { LanguageCode } from "./dictionary";
-import { INITIAL_SRS, type Grade, type SrsState, schedule } from "./srs";
+import {
+  INITIAL_SRS,
+  retrievability,
+  schedule,
+  type Grade,
+  type SrsState,
+} from "./srs";
 
 /**
  * "Ikinci beyin" katmani.
@@ -65,10 +71,59 @@ export interface Fact {
   ts: number;
 }
 
+/**
+ * Tek bir tekrarin kaydi. Kelimenin son durumu `words` tablosunda duruyor ama
+ * zamanlamanin kendini duzeltebilmesi icin gecmisin tamami gerekiyor: hangi
+ * kelimeyi, ne zaman, aradan kac gun gectikten sonra, nasil bildin.
+ */
+export interface ReviewLog {
+  id?: number;
+  /** `${language}:${word}` — words tablosundaki anahtar. */
+  key: string;
+  language: LanguageCode;
+  ts: number;
+  grade: Grade;
+  /** Tekrar anindaki durum (bu tekrardan once). */
+  status: SrsState["status"];
+  /** Onceki tekrardan bu yana gecen gun; ilk tekrarda 0. */
+  elapsedDays: number;
+  /** Sistemin o an ongordugu hatirlama olasiligi (0-1); olcum icin. */
+  predicted: number;
+}
+
+/**
+ * Tarama karari: banka kelimesini biliyor musun?
+ *
+ * "known" verilen kelimeler bir daha karsina cikmiyor; sistem bunlari senin
+ * bildigin kabul ediyor. Kontrol sorusunu kacirirsan karar "unknown"a donuyor.
+ */
+export interface Screened {
+  /** `${language}:${word}` */
+  key: string;
+  word: string;
+  language: LanguageCode;
+  verdict: "known" | "unsure" | "unknown";
+  ts: number;
+  /** Kontrol sorusunda yanildiysa: "biliyorum" demesine ragmen bilmiyormus. */
+  failedCheck?: boolean;
+}
+
+/** Banka kelimelerinin Turkce karsiligi — modelden bir kez alinip saklaniyor. */
+export interface Gloss {
+  key: string; // `${language}:${word}`
+  word: string;
+  language: LanguageCode;
+  tr: string;
+  ts: number;
+}
+
 class BrainDb extends Dexie {
   messages!: Table<StoredMessage, number>;
   words!: Table<WordStat, string>;
   facts!: Table<Fact, number>;
+  reviews!: Table<ReviewLog, number>;
+  screened!: Table<Screened, string>;
+  glosses!: Table<Gloss, string>;
 
   constructor() {
     super("kelime-sozlugu-brain");
@@ -97,6 +152,37 @@ class BrainDb extends Dexie {
             entry.learnedOn = entry.learnedOn ?? dayKey(entry.firstSeen);
           }),
       );
+
+    // v3: tekrar gunlugu + FSRS alanlari. Eski kayitlarda stability/difficulty
+    // yok; sifir birakiyoruz, FSRS ilk tekrarda bos karttan baslatiyor.
+    this.version(3)
+      .stores({
+        messages: "++id, ts, language, word",
+        words: "key, language, count, lastSeen, due, status",
+        facts: "++id, kind, language, ts",
+        reviews: "++id, key, language, ts",
+      })
+      .upgrade((tx) =>
+        tx
+          .table<WordStat>("words")
+          .toCollection()
+          .modify((entry) => {
+            entry.stability = entry.stability ?? 0;
+            entry.difficulty = entry.difficulty ?? 0;
+            entry.learningSteps = entry.learningSteps ?? 0;
+            entry.lastReview = entry.lastReview ?? null;
+          }),
+      );
+
+    // v4: kelime bankasi taramasi. Yeni tablolar; mevcut veriye dokunmuyor.
+    this.version(4).stores({
+      messages: "++id, ts, language, word",
+      words: "key, language, count, lastSeen, due, status",
+      facts: "++id, kind, language, ts",
+      reviews: "++id, key, language, ts",
+      screened: "key, language, verdict, ts",
+      glosses: "key, language",
+    });
   }
 }
 
@@ -282,7 +368,12 @@ export async function addWord(
   });
 }
 
-/** Tekrar sonucunu isle ve bir sonraki tarihi hesapla. */
+/**
+ * Tekrar sonucunu isle, bir sonraki tarihi hesapla ve olayi gunluge yaz.
+ *
+ * Gunluk yalniz gecmis kaydi degil: zamanlamanin kendini olcebilmesinin tek
+ * yolu "ne ongordum / ne oldu" ciftlerini saklamak (bkz. lib/optimizer.ts).
+ */
 export async function gradeWord(
   key: string,
   grade: Grade,
@@ -291,9 +382,137 @@ export async function gradeWord(
   if (!database) return null;
   const entry = await database.words.get(key);
   if (!entry) return null;
-  const next = { ...entry, ...schedule(entry, grade), lastSeen: Date.now() };
+
+  const now = Date.now();
+  const elapsedDays = entry.lastReview
+    ? (now - entry.lastReview) / (24 * 60 * 60 * 1000)
+    : 0;
+  const predicted = retrievability(entry, now);
+
+  const next = { ...entry, ...schedule(entry, grade, now), lastSeen: now };
   await database.words.put(next);
+
+  try {
+    await database.reviews.add({
+      key,
+      language: entry.language,
+      ts: now,
+      grade,
+      status: entry.status,
+      elapsedDays,
+      predicted,
+    });
+  } catch {
+    // Gunluk yazilamazsa tekrar yine de islensin.
+  }
+
   return next;
+}
+
+/** Tekrar gunlugu — olcum ve disari aktarma icin. */
+export async function listReviews(
+  language: LanguageCode,
+): Promise<ReviewLog[]> {
+  const database = getDb();
+  if (!database) return [];
+  return database.reviews.where({ language }).sortBy("ts");
+}
+
+export async function countReviews(language: LanguageCode): Promise<number> {
+  const database = getDb();
+  if (!database) return 0;
+  return database.reviews.where({ language }).count();
+}
+
+// --- Kelime bankasi taramasi ------------------------------------------------
+
+/** Tarama karari yaz. Ayni kelime tekrar taranirsa karar guncellenir. */
+export async function markScreened(
+  word: string,
+  language: LanguageCode,
+  verdict: Screened["verdict"],
+  failedCheck = false,
+): Promise<void> {
+  const database = getDb();
+  if (!database) return;
+  try {
+    await database.screened.put({
+      key: `${language}:${word}`,
+      word,
+      language,
+      verdict,
+      ts: Date.now(),
+      ...(failedCheck ? { failedCheck: true } : {}),
+    });
+  } catch {
+    // yoksay
+  }
+}
+
+export async function listScreened(
+  language: LanguageCode,
+): Promise<Screened[]> {
+  const database = getDb();
+  if (!database) return [];
+  return database.screened.where({ language }).toArray();
+}
+
+/** Taranmis kelimelerin karar dagilimi — ilerleme cubugu icin. */
+export async function screeningCounts(
+  language: LanguageCode,
+): Promise<{ known: number; unsure: number; unknown: number; total: number }> {
+  const rows = await listScreened(language);
+  return {
+    known: rows.filter((r) => r.verdict === "known").length,
+    unsure: rows.filter((r) => r.verdict === "unsure").length,
+    unknown: rows.filter((r) => r.verdict === "unknown").length,
+    total: rows.length,
+  };
+}
+
+/** "Biliyorum" deyip kontrol sorusunda yanildigin kelimeler. */
+export async function bluffedWords(
+  language: LanguageCode,
+): Promise<Screened[]> {
+  const rows = await listScreened(language);
+  return rows.filter((row) => row.failedCheck).sort((a, b) => b.ts - a.ts);
+}
+
+export async function getGlosses(
+  words: string[],
+  language: LanguageCode,
+): Promise<Map<string, string>> {
+  const database = getDb();
+  const found = new Map<string, string>();
+  if (!database) return found;
+  const rows = await database.glosses.bulkGet(
+    words.map((word) => `${language}:${word}`),
+  );
+  for (const row of rows) {
+    if (row?.tr) found.set(row.word, row.tr);
+  }
+  return found;
+}
+
+export async function saveGlosses(
+  entries: { word: string; tr: string }[],
+  language: LanguageCode,
+): Promise<void> {
+  const database = getDb();
+  if (!database || !entries.length) return;
+  try {
+    await database.glosses.bulkPut(
+      entries.map((entry) => ({
+        key: `${language}:${entry.word}`,
+        word: entry.word,
+        language,
+        tr: entry.tr,
+        ts: Date.now(),
+      })),
+    );
+  } catch {
+    // yoksay
+  }
 }
 
 export async function countMessages(language: LanguageCode): Promise<number> {
@@ -391,24 +610,40 @@ export async function forgetAll(language: LanguageCode): Promise<void> {
     database.messages,
     database.words,
     database.facts,
+    database.reviews,
+    database.screened,
     async () => {
       await database.messages.where({ language }).delete();
       await database.words.where({ language }).delete();
       await database.facts.where({ language }).delete();
+      await database.reviews.where({ language }).delete();
+      await database.screened.where({ language }).delete();
     },
   );
+  // Turkce karsilik onbellegi kisisel veri degil, modelden gelen sozluk
+  // bilgisi; silmiyoruz ki sifirdan tekrar token harcanmasin.
 }
 
 /** Hafizayi disari aktar — kullanici verisinin cihazda kilitli kalmamasi icin. */
 export async function exportMemory(language: LanguageCode) {
   const database = getDb();
   if (!database) return null;
-  const [messages, words, facts] = await Promise.all([
+  const [messages, words, facts, reviews, screened] = await Promise.all([
     database.messages.where({ language }).toArray(),
     database.words.where({ language }).toArray(),
     database.facts.where({ language }).toArray(),
+    database.reviews.where({ language }).toArray(),
+    database.screened.where({ language }).toArray(),
   ]);
-  return { language, exportedAt: new Date().toISOString(), facts, words, messages };
+  return {
+    language,
+    exportedAt: new Date().toISOString(),
+    facts,
+    words,
+    messages,
+    reviews,
+    screened,
+  };
 }
 
 export { getDb };
